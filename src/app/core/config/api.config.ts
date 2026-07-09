@@ -1,3 +1,2 @@
-// URL base del backend de Banca Empresas (feature sales-calls). En producción
-// debería venir de environments/config, no hardcodeada.
-export const API_BASE_URL = 'http://localhost:3000/api/sales-calls';
+// URL base del backend de Banca Empresas (feature sales-calls).
+export const API_BASE_URL = 'https://banca-empresas-backend-psi.vercel.app/api/sales-calls';
