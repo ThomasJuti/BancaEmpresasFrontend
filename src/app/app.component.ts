@@ -1,16 +1,16 @@
 import { Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './shared/components/sidebar/sidebar.component';
-import { CallsPageComponent } from './features/calls/components/calls-page.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [SidebarComponent, CallsPageComponent],
+  imports: [SidebarComponent, RouterOutlet],
   template: `
     <div class="app-shell">
       <app-sidebar />
       <main class="app-main">
-        <app-calls-page />
+        <router-outlet />
       </main>
     </div>
   `,

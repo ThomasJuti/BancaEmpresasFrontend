@@ -1,0 +1,54 @@
+<a class="link-back" routerLink="/portafolio">← Volver al portafolio</a>
+
+@if (loading()) {
+<p class="state">Cargando pipeline…</p>
+} @else if (error()) {
+<p class="state error">{{ error() }}</p>
+} @else {
+  @if (pipeline(); as p) {
+  <header class="detail-head">
+    <div>
+      <h1 class="page-title" style="font-size: 32px">{{ p.name }}</h1>
+      <p class="page-subtitle">NIT {{ p.nit }} · Comercial: {{ p.assignedCommercial }}</p>
+    </div>
+    <div class="head-badges">
+      <span class="badge lg" [attr.data-status]="badgeStatus(p.activationStatus)">{{ statusLabel(p.activationStatus) }}</span>
+      <span class="badge" data-status="in_progress">{{ p.currentStageLabel }}</span>
+    </div>
+  </header>
+
+  <div class="card stepper-card">
+    <app-pipeline-stepper
+      [stages]="p.stages"
+      [selectedStageId]="selectedStageId()"
+      (stageSelected)="selectStage($event)"
+    />
+  </div>
+
+  @if (selectedStage(); as stage) {
+  <app-stage-detail-panel
+    [stage]="stage"
+    [followUpSchedule]="stage.id === 'follow_up' ? followUpSchedule() : null"
+    [actionLoading]="actionLoading()"
+    (actionRequested)="onActionRequested($event)"
+  />
+  }
+  }
+}
+
+@if (showModal() && pendingAction(); as action) {
+<div class="modal-overlay" (click)="closeModal()" (keydown.escape)="closeModal()" role="presentation">
+  <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <h4>Confirmar acción</h4>
+    <p>{{ action.confirmationMessage ?? '¿Desea continuar con esta acción?' }}</p>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" (click)="closeModal()">Cancelar</button>
+      <button type="button" class="btn-primary" (click)="confirmAction()">{{ action.label }}</button>
+    </div>
+  </div>
+</div>
+}
+
+@if (feedback()) {
+<div class="feedback-toast">{{ feedback() }}</div>
+}

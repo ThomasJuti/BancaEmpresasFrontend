@@ -1,6 +1,14 @@
 import { ApplicationConfig } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
+import { provideRouter } from '@angular/router';
+import { routes } from './app.routes';
+import { PORTFOLIO_REPOSITORY } from './features/portfolio/models/portfolio.repository';
+import { MockPortfolioRepository } from './features/portfolio/services/mock-portfolio.repository';
 
 export const appConfig: ApplicationConfig = {
-  providers: [provideHttpClient()],
+  providers: [
+    provideHttpClient(),
+    provideRouter(routes),
+    { provide: PORTFOLIO_REPOSITORY, useClass: MockPortfolioRepository },
+  ],
 };

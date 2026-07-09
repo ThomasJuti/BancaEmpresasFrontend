@@ -1,0 +1,29 @@
+:host {
+  display: block;
+  padding: 40px 48px 56px;
+}
+
+.detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.head-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.badge.lg {
+  font-size: 14px;
+  padding: 6px 14px;
+}
+
+.stepper-card {
+  margin-bottom: 16px;
+  padding: 20px 24px;
+}

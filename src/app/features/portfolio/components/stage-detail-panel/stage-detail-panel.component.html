@@ -1,0 +1,97 @@
+<div class="panel card">
+  <div class="panel-head">
+    <div>
+      <h3>{{ stage.title }}</h3>
+      <p class="muted">Sub-pasos para completar esta etapa del pipeline</p>
+    </div>
+    <span class="badge" [attr.data-status]="stage.status">{{ statusLabel(stage.status) }}</span>
+  </div>
+
+  @if (stage.id === 'follow_up' && followUpSchedule) {
+  <div
+    class="alert-banner"
+    [class.warning]="followUpSchedule.isCancellationRisk"
+    [class.danger]="followUpSchedule.phase === 'month_3' && followUpSchedule.isCancellationRisk"
+    [class.info]="!followUpSchedule.isCancellationRisk"
+  >
+    <strong>{{ followUpSchedule.label }}</strong> — {{ followUpSchedule.cadence }}.
+    Próxima acción: {{ followUpSchedule.nextAction }}
+    @if (followUpSchedule.nextActionDate) {
+    <span class="date">({{ followUpSchedule.nextActionDate | date: 'mediumDate' }})</span>
+    }
+    <div class="days">Días desde envío: {{ followUpSchedule.daysSinceShipment }}</div>
+  </div>
+
+  <div class="timeline">
+    <div class="timeline-item" [class.active]="followUpSchedule.phase === 'month_1'">
+      <span class="dot"></span>
+      <div>
+        <strong>Mes 1</strong>
+        <p>Correo + llamada de agente si no hay activación</p>
+      </div>
+    </div>
+    <div class="timeline-item" [class.active]="followUpSchedule.phase === 'month_2'">
+      <span class="dot"></span>
+      <div>
+        <strong>Mes 2</strong>
+        <p>Recordatorio cada 15 días</p>
+      </div>
+    </div>
+    <div class="timeline-item" [class.active]="followUpSchedule.phase === 'month_3'">
+      <span class="dot"></span>
+      <div>
+        <strong>Mes 3</strong>
+        <p>Recordatorio semanal; cancelación al día 90</p>
+      </div>
+    </div>
+  </div>
+  }
+
+  <ul class="checklist">
+    @for (step of stage.subSteps; track step.id) {
+    <li class="check-item" [attr.data-status]="step.status">
+      <span class="check-icon">
+        @if (step.status === 'completed') {
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        } @else if (step.status === 'in_progress') {
+        <span class="pulse"></span>
+        } @else {
+        <span class="empty"></span>
+        }
+      </span>
+      <div class="check-body">
+        <div class="check-top">
+          <strong>{{ step.title }}</strong>
+          <span class="badge sm" [attr.data-status]="step.status">{{ statusLabel(step.status) }}</span>
+        </div>
+        <p>{{ step.description }}</p>
+        <div class="meta">
+          @if (step.assignee) {
+          <span>Responsable: {{ step.assignee }}</span>
+          }
+          @if (step.completedAt) {
+          <span>Completado: {{ step.completedAt | date: 'short' }}</span>
+          }
+        </div>
+      </div>
+    </li>
+    }
+  </ul>
+
+  @if (stage.actions.length > 0) {
+  <div class="actions">
+    @for (action of stage.actions; track action.id) {
+    <button
+      type="button"
+      [class]="action.kind === 'primary' ? 'btn-primary' : 'btn-secondary'"
+      [disabled]="actionLoading"
+      (click)="requestAction(action)"
+    >
+      {{ action.label }}
+    </button>
+    }
+  </div>
+  }
+</div>

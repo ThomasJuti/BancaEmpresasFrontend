@@ -1,4 +1,6 @@
 /* Design System — Banco de Bogotá · Portal Comercial */
+@import './app/shared/styles/portal-ui.css';
+
 :root {
   /* Colores */
   --navy: #002f87;

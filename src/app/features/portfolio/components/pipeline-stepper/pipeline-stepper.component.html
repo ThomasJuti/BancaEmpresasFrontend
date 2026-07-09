@@ -1,0 +1,28 @@
+<div class="stepper">
+  @for (stageId of order; track stageId; let i = $index; let last = $last) {
+  <div class="step-wrap">
+    <button
+      type="button"
+      class="step"
+      [class.completed]="stageById(stageId)?.status === 'completed'"
+      [class.active]="selectedStageId === stageId"
+      [class.blocked]="stageById(stageId)?.status === 'blocked'"
+      (click)="selectStage(stageId)"
+    >
+      <span class="node">
+        @if (stageById(stageId)?.status === 'completed') {
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        } @else {
+        <span>{{ i + 1 }}</span>
+        }
+      </span>
+      <span class="label" [class.active-label]="selectedStageId === stageId">{{ stageById(stageId)?.title }}</span>
+    </button>
+    @if (!last) {
+    <div class="connector" [class]="connectorClass(i)"></div>
+    }
+  </div>
+  }
+</div>

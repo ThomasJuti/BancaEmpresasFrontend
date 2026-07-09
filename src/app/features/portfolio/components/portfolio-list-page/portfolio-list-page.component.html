@@ -1,0 +1,113 @@
+<header class="page-header">
+  <h1 class="page-title">Portafolio actual</h1>
+  <p class="page-subtitle">Empresas con tarjeta LATAM Business vendida y estado en el pipeline de colocación.</p>
+</header>
+
+@if (loading()) {
+<p class="state">Cargando portafolio…</p>
+} @else if (error()) {
+<p class="state error">{{ error() }}</p>
+} @else {
+@if (kpis(); as k) {
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-icon info">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <rect x="4" y="6" width="16" height="14" rx="2" /><path d="M9 6V4h6v2" />
+      </svg>
+    </div>
+    <div class="kpi-value">{{ k.sold }}</div>
+    <div class="kpi-caption">Empresas vendidas</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon alert">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round">
+        <path d="M12 3 2 20h20L12 3z" /><line x1="12" y1="10" x2="12" y2="14" />
+      </svg>
+    </div>
+    <div class="kpi-value">{{ k.inFollowUp }}</div>
+    <div class="kpi-caption">En seguimiento</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon success">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+    </div>
+    <div class="kpi-value">{{ k.activated }}</div>
+    <div class="kpi-caption">Activadas</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-icon danger">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="12" cy="12" r="9" /><line x1="12" y1="8" x2="12" y2="12" /><circle cx="12" cy="16" r="0.5" fill="currentColor" />
+      </svg>
+    </div>
+    <div class="kpi-value">{{ k.atRisk }}</div>
+    <div class="kpi-caption">En riesgo de cancelación</div>
+  </div>
+</div>
+}
+
+<div class="search-wrap">
+  <label for="portfolio-search">Buscar empresa</label>
+  <div class="search-field">
+    <input
+      id="portfolio-search"
+      type="search"
+      placeholder="Buscar por nombre o NIT"
+      [value]="searchQuery()"
+      (input)="onSearchInput($event)"
+      (keydown.enter)="onSearchSubmit()"
+    />
+    <button type="button" class="btn-search" aria-label="Buscar" (click)="onSearchSubmit()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.5" y2="16.5" />
+      </svg>
+    </button>
+  </div>
+</div>
+
+@if (filteredCompanies().length === 0) {
+<p class="state">No hay empresas que coincidan con la búsqueda.</p>
+} @else {
+<div class="data-table-card">
+  <div
+    class="data-table-head"
+    style="grid-template-columns: 2fr 1.2fr 1.4fr 0.8fr 1fr 1fr 1fr"
+  >
+    <div>Empresa</div>
+    <div>NIT</div>
+    <div>Etapa actual</div>
+    <div>Avance</div>
+    <div>Envío tarjeta</div>
+    <div>Activación</div>
+    <div>Acción</div>
+  </div>
+  @for (company of filteredCompanies(); track company.id) {
+  <div
+    class="data-table-row"
+    style="grid-template-columns: 2fr 1.2fr 1.4fr 0.8fr 1fr 1fr 1fr"
+    (click)="openCompany(company)"
+    (keydown.enter)="openCompany(company)"
+    tabindex="0"
+    role="button"
+  >
+    <div><strong>{{ company.name }}</strong></div>
+    <div class="muted">{{ company.nit }}</div>
+    <div class="muted">{{ company.currentStageLabel }}</div>
+    <div class="muted">{{ company.progressPercent }}%</div>
+    <div class="muted">{{ company.cardShippedAt ? (company.cardShippedAt | date: 'mediumDate') : '—' }}</div>
+    <div>
+      <span class="badge" [attr.data-status]="badgeStatus(company.activationStatus)">
+        {{ statusLabel(company.activationStatus) }}
+      </span>
+    </div>
+    <div>
+      <a class="link-action" [routerLink]="['/portafolio', company.id]" (click)="$event.stopPropagation()">Ver pipeline ›</a>
+    </div>
+  </div>
+  }
+</div>
+}
+}

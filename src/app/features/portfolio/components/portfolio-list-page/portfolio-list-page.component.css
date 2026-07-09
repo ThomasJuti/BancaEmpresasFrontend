@@ -1,0 +1,18 @@
+:host {
+  display: block;
+  padding: 40px 48px 56px;
+}
+
+.search-wrap label {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--heading);
+  margin-bottom: 10px;
+}
+
+@media (max-width: 1100px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
