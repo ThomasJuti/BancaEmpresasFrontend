@@ -1,0 +1,122 @@
+<header class="topbar">
+  <div class="brand">
+    <div>
+      <h1>Llamadas</h1>
+      <p>Resultados de llamadas del agente de voz de ventas</p>
+    </div>
+  </div>
+  <button class="refresh" (click)="refresh()">↻ Actualizar</button>
+</header>
+
+@if (loading()) {
+  <p class="state">Cargando llamadas…</p>
+} @else if (error()) {
+  <p class="state error">{{ error() }}</p>
+} @else if (calls().length === 0) {
+  <p class="state">Aún no hay llamadas registradas.</p>
+} @else {
+  <div class="layout">
+    <!-- Lista -->
+    <aside class="list">
+      @for (call of calls(); track call.id) {
+        <button
+          class="call-item"
+          [class.active]="selected()?.id === call.id"
+          (click)="select(call)"
+        >
+          <div class="row">
+            <strong>{{ call.customerName || 'Sin nombre' }}</strong>
+            <span class="badge" [attr.data-status]="call.status">{{ statusLabel(call.status) }}</span>
+          </div>
+          <div class="muted">{{ call.phoneNumber }}</div>
+          <div class="muted small">{{ call.createdAt | date: 'short' }}</div>
+        </button>
+      }
+    </aside>
+
+    <!-- Detalle -->
+    <section class="detail">
+      @if (selected(); as call) {
+        <div class="detail-head">
+          <div>
+            <h2>{{ call.customerName || 'Sin nombre' }}</h2>
+            <p class="muted">{{ call.phoneNumber }}</p>
+          </div>
+          <span class="badge lg" [attr.data-status]="call.status">{{ statusLabel(call.status) }}</span>
+        </div>
+
+        <div class="stats">
+          <div class="kpi">
+            <span class="kpi-value">{{ call.durationSeconds ?? '—' }}</span>
+            <span class="kpi-caption">Duración (segundos)</span>
+          </div>
+          <div class="kpi">
+            <span class="kpi-value" [class.ok]="isSuccess(call.successEvaluation)" [class.no]="call.successEvaluation !== undefined && !isSuccess(call.successEvaluation)">
+              {{ call.successEvaluation === undefined ? '—' : (isSuccess(call.successEvaluation) ? 'Éxito' : 'No exitosa') }}
+            </span>
+            <span class="kpi-caption">Resultado</span>
+          </div>
+          <div class="kpi">
+            <span class="kpi-value small">{{ call.endedReason || '—' }}</span>
+            <span class="kpi-caption">Motivo de fin</span>
+          </div>
+        </div>
+
+        <!-- Variables de salida -->
+        @if (structuredEntries(call.structuredData).length > 0) {
+          <div class="card">
+            <h3>Variables de salida</h3>
+            <div class="vars">
+              @for (entry of structuredEntries(call.structuredData); track entry.key) {
+                <div class="var">
+                  <span class="var-key">{{ entry.key }}</span>
+                  <span class="var-val">{{ entry.value }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Resumen -->
+        @if (call.summary) {
+          <div class="card">
+            <h3>Resumen</h3>
+            <p>{{ call.summary }}</p>
+          </div>
+        }
+
+        <!-- Grabación -->
+        <div class="card">
+          <h3>Grabación</h3>
+          @if (call.recordingUrl) {
+            <audio class="player" controls [src]="recordingUrl(call)"></audio>
+          } @else {
+            <p class="muted">Sin grabación disponible.</p>
+          }
+          @if (call.detailsUrl) {
+            <a class="link" [href]="call.detailsUrl" target="_blank" rel="noopener">🔗 Ver detalle en Fonema</a>
+          }
+        </div>
+
+        <!-- Transcript -->
+        @if (call.transcript && call.transcript.length > 0) {
+          <div class="card">
+            <h3>Transcripción</h3>
+            <div class="chat">
+              @for (msg of call.transcript; track $index) {
+                @if (msg.role !== 'system') {
+                  <div class="msg" [class.agent]="msg.role === 'bot' || msg.role === 'agent'" [class.user]="msg.role === 'user'">
+                    <span class="who">{{ msg.role === 'user' ? 'Cliente' : 'Agente' }}</span>
+                    <p>{{ msg.message }}</p>
+                  </div>
+                }
+              }
+            </div>
+          </div>
+        }
+      } @else {
+        <p class="state">Selecciona una llamada de la lista.</p>
+      }
+    </section>
+  </div>
+}

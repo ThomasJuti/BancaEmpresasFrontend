@@ -1,0 +1,74 @@
+.sidebar {
+  width: 168px;
+  min-height: 100vh;
+  background: var(--navy);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 10px;
+  position: sticky;
+  top: 0;
+}
+
+.brand {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 18px;
+}
+.logo {
+  width: 100%;
+  max-width: 120px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: block;
+  object-fit: contain;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 0;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--on-navy);
+  font-family: inherit;
+}
+.nav-item .icon svg {
+  stroke: var(--on-navy);
+  width: 20px;
+  height: 20px;
+}
+.nav-item .label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.nav-item:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.nav-item.active {
+  background: #fff;
+}
+.nav-item.active .icon svg {
+  stroke: var(--primary);
+}
+.nav-item.active .label {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.logout {
+  margin-top: 6px;
+  opacity: 0.85;
+}

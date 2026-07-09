@@ -1,0 +1,39 @@
+<aside class="sidebar">
+  <div class="brand">
+    <img class="logo" src="assets/banco-bogota-logo.png" alt="Banco de Bogotá" />
+  </div>
+
+  <nav class="nav">
+    @for (item of items; track item.label) {
+      <button type="button" class="nav-item" [class.active]="item.active" [attr.aria-current]="item.active ? 'page' : null">
+        <span class="icon" [ngSwitch]="item.icon">
+          <svg *ngSwitchCase="'phone'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8.1 9.5a16 16 0 0 0 6 6l1.1-1.1a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z" />
+          </svg>
+          <svg *ngSwitchCase="'portfolio'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="6" width="16" height="14" rx="2" /><path d="M9 6V4h6v2" />
+          </svg>
+          <svg *ngSwitchCase="'box'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 8l9-5 9 5v8l-9 5-9-5z" /><path d="M3 8l9 5 9-5M12 13v8" />
+          </svg>
+          <svg *ngSwitchCase="'star'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l2.7 5.5 6 .9-4.3 4.2 1 6-5.4-2.8L6.6 19.6l1-6L3.3 9.4l6-.9z" />
+          </svg>
+          <svg *ngSwitchCase="'chart'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+          </svg>
+        </span>
+        <span class="label">{{ item.label }}</span>
+      </button>
+    }
+  </nav>
+
+  <button type="button" class="nav-item logout">
+    <span class="icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+      </svg>
+    </span>
+    <span class="label">Salir</span>
+  </button>
+</aside>
