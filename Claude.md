@@ -3,7 +3,30 @@
 Todo desarrollo en este proyecto debe adherirse estrictamente a los siguientes principios:
 
 ### Arquitectura y diseño
-- **Clean Architecture**: separar el dominio de negocio de la infraestructura (HTTP, storage) y de la capa de presentación. Los componentes no deben contener lógica de negocio ni llamadas directas a servicios HTTP.
+- **Feature-based architecture**: organizar el código por dominios de negocio (features), no por tipo técnico. Cada feature agrupa todo lo necesario para una capacidad del producto (componentes, servicios, modelos, rutas y estado).
+- **Estructura del proyecto**:
+  ```
+  src/
+  ├── app/
+  │   ├── core/              # Servicios singleton, guards, interceptors, configuración global
+  │   ├── shared/            # Componentes, pipes y directivas reutilizables entre features
+  │   └── features/
+  │       ├── accounts/
+  │       │   ├── components/
+  │       │   ├── services/
+  │       │   ├── models/
+  │       │   ├── routes/
+  │       │   └── accounts.routes.ts
+  │       └── transfers/
+  │           └── ...
+  ```
+- **Reglas de features**:
+  - Cada feature expone una API pública mínima (barrel `index.ts` o rutas); el resto del código es interno a la feature.
+  - Las features no importan código interno de otras features; la comunicación entre features se hace vía `core/`, `shared/` o contratos compartidos.
+  - `core/` y `shared/` no dependen de `features/`.
+  - Cargar features con lazy loading cuando sea posible.
+  - Dentro de cada feature, separar presentación de lógica: los componentes no deben contener lógica de negocio ni llamadas HTTP directas.
+- **Clean Architecture** (por feature): separar dominio de negocio, infraestructura (HTTP, storage) y presentación dentro de cada feature.
 - **Clean Code**: código legible, nombres descriptivos, componentes pequeños con una sola responsabilidad, sin lógica compleja en templates.
 - **SOLID**:
   - **S** — Single Responsibility: cada componente/servicio/clase tiene una única razón para cambiar.
@@ -11,8 +34,7 @@ Todo desarrollo en este proyecto debe adherirse estrictamente a los siguientes p
   - **L** — Liskov Substitution: las implementaciones deben ser sustituibles por sus abstracciones.
   - **I** — Interface Segregation: interfaces pequeñas y específicas.
   - **D** — Dependency Inversion: los componentes dependen de abstracciones (servicios inyectados), no de implementaciones concretas.
-- **Modularidad**: organizar el código en módulos Angular cohesivos (`CoreModule`, `SharedModule`, feature modules). Cada módulo debe ser autocontenido y tener responsabilidad clara.
-- **DRY**: evitar duplicación en templates, servicios y lógica de estado.
+- **DRY**: evitar duplicación en templates, servicios y lógica de estado; extraer a `shared/` solo cuando haya reutilización real entre features.
 - **YAGNI**: no añadir funcionalidad especulativa ni abstracciones prematuras.
 
 ### Ciberseguridad
