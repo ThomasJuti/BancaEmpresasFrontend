@@ -14,6 +14,8 @@ export interface PortfolioCompanySummary {
   activatedAt?: string;
   assignedCommercial: string;
   activationStatus: ActivationStatus;
+  phone?: string | null;
+  email?: string | null;
 }
 
 export interface CompanyPipeline extends PortfolioCompanySummary {

@@ -140,6 +140,8 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       progressPercent: computeProgress(INITIAL_STAGE),
       assignedCommercial: 'Por asignar',
       activationStatus: 'pending',
+      phone: cliente.telefono,
+      email: cliente.correo,
       stages: buildStages(INITIAL_STAGE),
     };
   }

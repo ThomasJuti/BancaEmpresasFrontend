@@ -68,14 +68,36 @@
   </div>
 </div>
 
+@if (selectedCount() > 0) {
+<div class="bulk-bar">
+  <span class="bulk-info">{{ selectedCount() }} seleccionada(s)</span>
+  <button
+    type="button"
+    class="btn-call btn-call-primary"
+    [disabled]="callableSelected().length === 0"
+    (click)="openBatchCall()"
+  >
+    Llamar seleccionados ({{ callableSelected().length }})
+  </button>
+</div>
+}
+
 @if (companies().length === 0) {
 <p class="state">No hay empresas que coincidan con la búsqueda.</p>
 } @else {
 <div class="data-table-card">
   <div
     class="data-table-head"
-    style="grid-template-columns: 2fr 1.2fr 1.4fr 0.8fr 1fr 1fr 1fr"
+    style="grid-template-columns: 0.4fr 2fr 1.2fr 1.4fr 0.8fr 1fr 1fr 1.1fr"
   >
+    <div>
+      <input
+        type="checkbox"
+        aria-label="Seleccionar todo"
+        [checked]="allVisibleSelected()"
+        (change)="toggleSelectAll()"
+      />
+    </div>
     <div>Empresa</div>
     <div>NIT</div>
     <div>Etapa actual</div>
@@ -87,12 +109,21 @@
   @for (company of companies(); track company.id) {
   <div
     class="data-table-row"
-    style="grid-template-columns: 2fr 1.2fr 1.4fr 0.8fr 1fr 1fr 1fr"
+    style="grid-template-columns: 0.4fr 2fr 1.2fr 1.4fr 0.8fr 1fr 1fr 1.1fr"
+    [class.row-selected]="isSelected(company)"
     (click)="openCompany(company)"
     (keydown.enter)="openCompany(company)"
     tabindex="0"
     role="button"
   >
+    <div (click)="$event.stopPropagation()">
+      <input
+        type="checkbox"
+        [attr.aria-label]="'Seleccionar ' + company.name"
+        [checked]="isSelected(company)"
+        (change)="toggleSelect(company)"
+      />
+    </div>
     <div><strong>{{ company.name }}</strong></div>
     <div class="muted">{{ company.nit }}</div>
     <div class="muted">{{ company.currentStageLabel }}</div>
@@ -103,8 +134,20 @@
         {{ statusLabel(company.activationStatus) }}
       </span>
     </div>
-    <div>
-      <a class="link-action" [routerLink]="['/portafolio', company.id]" (click)="$event.stopPropagation()">Ver proceso›</a>
+    <div class="action-cell" (click)="$event.stopPropagation()">
+      <button
+        type="button"
+        class="btn-call"
+        [disabled]="!hasPhone(company)"
+        [title]="hasPhone(company) ? 'Llamar a ' + company.name : 'Sin teléfono disponible'"
+        (click)="openSingleCall(company, $event)"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
+        </svg>
+        Llamar
+      </button>
+      <a class="link-action" [routerLink]="['/portafolio', company.id]" (click)="$event.stopPropagation()">Ver›</a>
     </div>
   </div>
   }
@@ -148,4 +191,66 @@
 </footer>
 </div>
 }
+}
+
+@if (showCallModal()) {
+<div class="modal-backdrop" (click)="closeCallModal()">
+  <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    @if (callScope() === 'single' && callTarget(); as target) {
+    <h2 class="modal-title">Iniciar llamada de venta</h2>
+    <p class="modal-text">Se realizará una llamada agéntica (Fonema) a:</p>
+    <p class="modal-target"><strong>{{ target.name }}</strong> · NIT {{ target.nit }}</p>
+    <label class="modal-label" for="call-phone">Teléfono (formato internacional)</label>
+    <input
+      id="call-phone"
+      class="modal-input"
+      type="tel"
+      [ngModel]="editablePhone()"
+      (ngModelChange)="editablePhone.set($event)"
+      placeholder="+573001234567"
+    />
+    @if (!editablePhoneValid()) {
+    <p class="modal-hint error">Ingresa un número válido (ej. +573001234567).</p>
+    }
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" [disabled]="calling()" (click)="closeCallModal()">Cancelar</button>
+      <button
+        type="button"
+        class="btn-call btn-call-primary"
+        [disabled]="!editablePhoneValid() || calling()"
+        (click)="confirmCall()"
+      >
+        {{ calling() ? 'Llamando…' : 'Confirmar llamada' }}
+      </button>
+    </div>
+    } @else {
+    <h2 class="modal-title">Iniciar campaña de llamadas</h2>
+    <p class="modal-text">Se creará una campaña (batch calling) para las empresas seleccionadas con teléfono válido:</p>
+    <ul class="modal-list">
+      @for (company of callableSelected(); track company.id) {
+      <li><strong>{{ company.name }}</strong> · {{ company.phone }}</li>
+      }
+    </ul>
+    <p class="modal-hint">Total: {{ callableSelected().length }} llamada(s). El ritmo (pacing) usa la política por defecto del backend.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" [disabled]="calling()" (click)="closeCallModal()">Cancelar</button>
+      <button
+        type="button"
+        class="btn-call btn-call-primary"
+        [disabled]="calling() || callableSelected().length === 0"
+        (click)="confirmCall()"
+      >
+        {{ calling() ? 'Creando…' : 'Confirmar campaña' }}
+      </button>
+    </div>
+    }
+  </div>
+</div>
+}
+
+@if (feedback(); as msg) {
+<div class="toast" role="status">
+  <span>{{ msg }}</span>
+  <button type="button" class="toast-link" (click)="goToCalls()">Ver llamadas ›</button>
+</div>
 }

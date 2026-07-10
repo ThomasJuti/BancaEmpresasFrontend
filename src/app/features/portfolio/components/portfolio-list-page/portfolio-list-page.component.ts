@@ -1,6 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { SalesCallsService, BatchLead } from '../../../../core/services/sales-calls.service';
+import { isValidE164, toE164 } from '../../../../shared/utils/phone.util';
 import { PortfolioCompanySummary, PortfolioKpis } from '../../models/portfolio-company.model';
 import { PortfolioRepository, PORTFOLIO_REPOSITORY } from '../../models/portfolio.repository';
 import { activationStatusLabel } from '../../utils/follow-up.util';
@@ -8,15 +11,18 @@ import { activationStatusLabel } from '../../utils/follow-up.util';
 const PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 300;
 
+type CallScope = 'single' | 'batch';
+
 @Component({
   selector: 'app-portfolio-list-page',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FormsModule],
   templateUrl: './portfolio-list-page.component.html',
   styleUrls: ['./portfolio-list-page.component.css'],
 })
 export class PortfolioListPageComponent implements OnInit, OnDestroy {
   private readonly repository = inject<PortfolioRepository>(PORTFOLIO_REPOSITORY);
+  private readonly salesCalls = inject(SalesCallsService);
   private readonly router = inject(Router);
 
   readonly pageSize = PAGE_SIZE;
@@ -36,7 +42,39 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
 
   private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+  readonly selectedIds = signal<Set<string>>(new Set());
+
+  // Estado del modal de confirmación (human-in-the-loop).
+  readonly showCallModal = signal(false);
+  readonly callScope = signal<CallScope>('single');
+  readonly callTarget = signal<PortfolioCompanySummary | null>(null);
+  readonly editablePhone = signal('');
+  readonly calling = signal(false);
+  readonly feedback = signal<string | null>(null);
+
   statusLabel = activationStatusLabel;
+
+  // La búsqueda y la paginación se resuelven en el servidor; aquí se expone la
+  // página actual para la selección múltiple.
+  readonly filteredCompanies = computed(() => this.companies());
+
+  readonly selectedCount = computed(() => this.selectedIds().size);
+
+  readonly allVisibleSelected = computed(() => {
+    const visible = this.filteredCompanies();
+    if (visible.length === 0) {
+      return false;
+    }
+    const selected = this.selectedIds();
+    return visible.every((c) => selected.has(c.id));
+  });
+
+  // Empresas seleccionadas que tienen teléfono válido para llamar.
+  readonly callableSelected = computed(() =>
+    this.companies().filter((c) => this.selectedIds().has(c.id) && !!toE164(c.phone)),
+  );
+
+  readonly editablePhoneValid = computed(() => isValidE164(toE164(this.editablePhone())));
 
   ngOnInit(): void {
     this.loadKpis();
@@ -52,6 +90,7 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
   load(): void {
     this.loading.set(true);
     this.error.set(null);
+    this.selectedIds.set(new Set());
 
     this.repository
       .getCompanies({
@@ -123,5 +162,135 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
     if (status === 'at_risk') return 'at_risk';
     if (status === 'cancelled') return 'cancelled';
     return 'pending';
+  }
+
+  hasPhone(company: PortfolioCompanySummary): boolean {
+    return !!toE164(company.phone);
+  }
+
+  isSelected(company: PortfolioCompanySummary): boolean {
+    return this.selectedIds().has(company.id);
+  }
+
+  toggleSelect(company: PortfolioCompanySummary): void {
+    const next = new Set(this.selectedIds());
+    if (next.has(company.id)) {
+      next.delete(company.id);
+    } else {
+      next.add(company.id);
+    }
+    this.selectedIds.set(next);
+  }
+
+  toggleSelectAll(): void {
+    if (this.allVisibleSelected()) {
+      this.selectedIds.set(new Set());
+      return;
+    }
+    this.selectedIds.set(new Set(this.filteredCompanies().map((c) => c.id)));
+  }
+
+  // --- Llamadas (human-in-the-loop) ---
+
+  openSingleCall(company: PortfolioCompanySummary, event?: Event): void {
+    event?.stopPropagation();
+    this.callScope.set('single');
+    this.callTarget.set(company);
+    this.editablePhone.set(toE164(company.phone) ?? company.phone ?? '');
+    this.showCallModal.set(true);
+  }
+
+  openBatchCall(): void {
+    if (this.callableSelected().length === 0) {
+      return;
+    }
+    this.callScope.set('batch');
+    this.callTarget.set(null);
+    this.showCallModal.set(true);
+  }
+
+  closeCallModal(): void {
+    if (this.calling()) {
+      return;
+    }
+    this.showCallModal.set(false);
+    this.callTarget.set(null);
+    this.editablePhone.set('');
+  }
+
+  confirmCall(): void {
+    if (this.callScope() === 'single') {
+      this.confirmSingleCall();
+    } else {
+      this.confirmBatchCall();
+    }
+  }
+
+  private confirmSingleCall(): void {
+    const company = this.callTarget();
+    const phone = toE164(this.editablePhone());
+    if (!company || !phone) {
+      return;
+    }
+
+    this.calling.set(true);
+    this.salesCalls
+      .initiateCall({
+        phoneNumber: phone,
+        customerName: company.name,
+        customerEmail: company.email ?? undefined,
+      })
+      .subscribe({
+        next: (call) => {
+          this.calling.set(false);
+          this.showCallModal.set(false);
+          this.showFeedback(`Llamada encolada para ${company.name} (estado: ${call.status}).`);
+        },
+        error: () => {
+          this.calling.set(false);
+          this.showFeedback('No se pudo iniciar la llamada. Intenta de nuevo.');
+        },
+      });
+  }
+
+  private confirmBatchCall(): void {
+    const targets = this.callableSelected();
+    if (targets.length === 0) {
+      return;
+    }
+
+    const leads: BatchLead[] = targets.map((company) => ({
+      leadId: company.id,
+      phoneNumber: toE164(company.phone) as string,
+      customerName: company.name,
+      customerEmail: company.email ?? undefined,
+    }));
+
+    const name = `Campaña portafolio ${new Date().toLocaleString('es-CO')}`;
+
+    this.calling.set(true);
+    this.salesCalls.createBatch({ name, leads }).subscribe({
+      next: (batch) => {
+        this.calling.set(false);
+        this.showCallModal.set(false);
+        this.selectedIds.set(new Set());
+        this.showFeedback(
+          `Campaña creada con ${leads.length} llamada(s) (estado: ${batch.status}).`,
+        );
+      },
+      error: () => {
+        this.calling.set(false);
+        this.showFeedback('No se pudo crear la campaña. Intenta de nuevo.');
+      },
+    });
+  }
+
+  goToCalls(): void {
+    void this.router.navigate(['/llamadas']);
+  }
+
+  private showFeedback(message: string): void {
+    this.feedback.set(message);
+    setTimeout(() => this.feedback.set(null), 4000);
   }
 }

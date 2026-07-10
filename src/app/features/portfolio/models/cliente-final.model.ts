@@ -8,6 +8,8 @@ export interface ClienteFinalDto {
   subsegmento: string | null;
   cupoDisponible: number | null;
   leaAprobado: number | null;
+  correo: string | null;
+  telefono: string | null;
 }
 
 export interface ClientesFinalesResponse {
