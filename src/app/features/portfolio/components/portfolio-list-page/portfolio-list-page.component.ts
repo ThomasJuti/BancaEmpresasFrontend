@@ -253,6 +253,7 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
         phoneNumber: phone,
         customerName: company.name,
         customerEmail: company.email ?? undefined,
+        variables: this.callContext(company),
       })
       .subscribe({
         next: (call) => {
@@ -278,6 +279,7 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
       phoneNumber: toE164(company.phone) as string,
       customerName: company.name,
       customerEmail: company.email ?? undefined,
+      variables: this.callContext(company),
     }));
 
     const name = `Campaña portafolio ${new Date().toLocaleString('es-CO')}`;
@@ -297,6 +299,16 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
         this.showFeedback('No se pudo crear la campaña. Intenta de nuevo.');
       },
     });
+  }
+
+  // Variables de contexto que el agente Fonema usa en el protocolo de
+  // verificación (nombre de empresa y NIT). Deben coincidir con las variables
+  // del script del agente: `empresa` y `nit`.
+  private callContext(company: PortfolioCompanySummary): Record<string, string> {
+    return {
+      empresa: company.name,
+      nit: company.nit,
+    };
   }
 
   goToCalls(): void {

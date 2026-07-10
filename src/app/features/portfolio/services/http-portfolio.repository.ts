@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { catchError, forkJoin, map, Observable, of, throwError } from 'rxjs';
 import { FILE_MATCHING_API, PIPELINE_API } from '../../../core/config/api.config';
+import { CallRecord, SalesCallsService } from '../../../core/services/sales-calls.service';
 import { PipelineCaseDto, PipelineCaseResponse } from '../models/pipeline-case.model';
 import { isPowerAppStageCompleted, mapBackendStageToFrontend } from '../utils/pipeline-case.mapper';
 import {
@@ -20,7 +21,13 @@ import {
   PortfolioPageResult,
   PortfolioRepository,
 } from '../models/portfolio.repository';
-import { applyPipelineAction, buildStages, computeProgress } from '../utils/pipeline-builder';
+import {
+  applyCallState,
+  applyPipelineAction,
+  buildStages,
+  CallStateInput,
+  computeProgress,
+} from '../utils/pipeline-builder';
 
 // Todo lead recién cruzado entra al pipeline en la etapa de llamadas de venta.
 const INITIAL_STAGE: PipelineStageId = 'calls';
@@ -29,13 +36,13 @@ const INITIAL_STAGE: PipelineStageId = 'calls';
  * Implementación de PortfolioRepository contra el backend real.
  * Consume `GET /api/file-matching/clientes-finales` (clientes elegibles desde
  * Supabase) y los proyecta al modelo de portafolio del front. El detalle del
- * pipeline y las acciones se construyen en cliente (aún no hay endpoints de
- * avance por empresa); el estado de sesión vive en memoria (minimización de
- * datos: no se persiste PII en el navegador).
+ * pipeline y las acciones se construyen en cliente; el avance de Power App se
+ * consulta en `pipeline_cases` cuando el backend lo expone.
  */
 @Injectable()
 export class HttpPortfolioRepository implements PortfolioRepository {
   private readonly http = inject(HttpClient);
+  private readonly salesCalls = inject(SalesCallsService);
   private readonly endpoint = `${FILE_MATCHING_API}/clientes-finales`;
 
   // Pipelines construidos en la sesión, para conservar el efecto de las acciones
@@ -52,8 +59,11 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       params = params.set('q', search);
     }
 
-    return this.http.get<ClientesFinalesPaginatedResponse>(this.endpoint, { params }).pipe(
-      map((response) => {
+    return forkJoin({
+      response: this.http.get<ClientesFinalesPaginatedResponse>(this.endpoint, { params }),
+      calls: this.listCallsSafe(),
+    }).pipe(
+      map(({ response, calls }) => {
         const isPaginated = response.page !== undefined && response.pageSize !== undefined;
         const clientes = isPaginated
           ? response.clientes
@@ -64,6 +74,7 @@ export class HttpPortfolioRepository implements PortfolioRepository {
 
         const companies = clientes.map((cliente) => {
           const pipeline = this.toPipeline(cliente);
+          applyCallState(pipeline, this.callStateFor(cliente.clienteId, calls));
           this.cache.set(pipeline.id, pipeline);
           return this.toSummary(pipeline);
         });
@@ -91,18 +102,26 @@ export class HttpPortfolioRepository implements PortfolioRepository {
   }
 
   getCompanyPipeline(companyId: string): Observable<CompanyPipeline> {
-    return this.http.get<ClienteFinalByIdResponse>(`${this.endpoint}/${encodeURIComponent(companyId)}`).pipe(
-      map((response) => {
-        const pipelineCase = response.pipelineCase ?? null;
-        const pipeline = this.toPipeline(response.cliente, pipelineCase ?? undefined);
+    return forkJoin({
+      detail: this.fetchClienteDetail(companyId),
+      calls: this.listCallsSafe(),
+    }).pipe(
+      map(({ detail, calls }) => {
+        const pipeline = this.toPipeline(detail.cliente, detail.pipelineCase);
+        applyCallState(pipeline, this.callStateFor(detail.cliente.clienteId, calls));
         this.cache.set(pipeline.id, pipeline);
         return structuredClone(pipeline);
       }),
-      catchError(() => this.fetchCompanyPipelineFallback(companyId)),
     );
   }
 
-  private fetchCompanyPipelineFallback(companyId: string): Observable<CompanyPipeline> {
+  private fetchClienteDetail(companyId: string): Observable<ClienteFinalByIdResponse> {
+    return this.http
+      .get<ClienteFinalByIdResponse>(`${this.endpoint}/${encodeURIComponent(companyId)}`)
+      .pipe(catchError(() => this.fetchClienteDetailFallback(companyId)));
+  }
+
+  private fetchClienteDetailFallback(companyId: string): Observable<ClienteFinalByIdResponse> {
     return forkJoin({
       cliente: this.http.get<ClientesFinalesPaginatedResponse>(this.endpoint).pipe(
         map((response) => {
@@ -120,12 +139,37 @@ export class HttpPortfolioRepository implements PortfolioRepository {
           catchError(() => of<PipelineCaseDto | null>(null)),
         ),
     }).pipe(
-      map(({ cliente, pipelineCase }) => {
-        const pipeline = this.toPipeline(cliente, pipelineCase ?? undefined);
-        this.cache.set(pipeline.id, pipeline);
-        return structuredClone(pipeline);
-      }),
+      map(({ cliente, pipelineCase }) => ({
+        cliente,
+        ...(pipelineCase ? { pipelineCase } : {}),
+      })),
     );
+  }
+
+  /** Lista de llamadas tolerante a fallos: si el endpoint falla, no rompe el portafolio. */
+  private listCallsSafe(): Observable<CallRecord[]> {
+    return this.salesCalls.listCalls().pipe(catchError(() => of([] as CallRecord[])));
+  }
+
+  /** Deriva el estado del stage `calls` desde la llamada más reciente del cliente (match por NIT). */
+  private callStateFor(clienteId: string, calls: CallRecord[]): CallStateInput | undefined {
+    const matches = calls.filter((c) => c.variables?.['nit'] === clienteId);
+    if (matches.length === 0) {
+      return undefined;
+    }
+    const latest = matches.reduce((a, b) =>
+      (a.updatedAt ?? '') >= (b.updatedAt ?? '') ? a : b,
+    );
+    return {
+      status: latest.status,
+      hasRecording: !!latest.recordingUrl,
+      qualified: this.isQualified(latest.successEvaluation),
+      at: latest.updatedAt,
+    };
+  }
+
+  private isQualified(value?: boolean | string): boolean {
+    return value === true || value === 'true' || value === 'Verdadero';
   }
 
   executeAction(companyId: string, stageId: string, actionId: string): Observable<ActionResult> {
