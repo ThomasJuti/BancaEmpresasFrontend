@@ -1,7 +1,9 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { catchError, map, Observable, of, throwError } from 'rxjs';
-import { FILE_MATCHING_API } from '../../../core/config/api.config';
+import { catchError, forkJoin, map, Observable, of, throwError } from 'rxjs';
+import { FILE_MATCHING_API, PIPELINE_API } from '../../../core/config/api.config';
+import { PipelineCaseDto, PipelineCaseResponse } from '../models/pipeline-case.model';
+import { isPowerAppStageCompleted, mapBackendStageToFrontend } from '../utils/pipeline-case.mapper';
 import {
   ClienteFinalByIdResponse,
   ClienteFinalDto,
@@ -89,29 +91,37 @@ export class HttpPortfolioRepository implements PortfolioRepository {
   }
 
   getCompanyPipeline(companyId: string): Observable<CompanyPipeline> {
-    const cached = this.cache.get(companyId);
-    if (cached) {
-      return of(structuredClone(cached));
-    }
-
-    return this.http.get<ClienteFinalByIdResponse>(`${this.endpoint}/${companyId}`).pipe(
+    return this.http.get<ClienteFinalByIdResponse>(`${this.endpoint}/${encodeURIComponent(companyId)}`).pipe(
       map((response) => {
-        const pipeline = this.toPipeline(response.cliente);
+        const pipelineCase = response.pipelineCase ?? null;
+        const pipeline = this.toPipeline(response.cliente, pipelineCase ?? undefined);
         this.cache.set(pipeline.id, pipeline);
         return structuredClone(pipeline);
       }),
-      catchError(() => this.fetchClienteFromList(companyId)),
+      catchError(() => this.fetchCompanyPipelineFallback(companyId)),
     );
   }
 
-  private fetchClienteFromList(companyId: string): Observable<CompanyPipeline> {
-    return this.http.get<ClientesFinalesPaginatedResponse>(this.endpoint).pipe(
-      map((response) => {
-        const cliente = response.clientes.find((c) => c.clienteId === companyId);
-        if (!cliente) {
-          throw new Error('Empresa no encontrada');
-        }
-        const pipeline = this.toPipeline(cliente);
+  private fetchCompanyPipelineFallback(companyId: string): Observable<CompanyPipeline> {
+    return forkJoin({
+      cliente: this.http.get<ClientesFinalesPaginatedResponse>(this.endpoint).pipe(
+        map((response) => {
+          const cliente = response.clientes.find((c) => c.clienteId === companyId);
+          if (!cliente) {
+            throw new Error('Empresa no encontrada');
+          }
+          return cliente;
+        }),
+      ),
+      pipelineCase: this.http
+        .get<PipelineCaseResponse>(`${PIPELINE_API}/cases/by-lead/${encodeURIComponent(companyId)}`)
+        .pipe(
+          map((response) => response.case),
+          catchError(() => of<PipelineCaseDto | null>(null)),
+        ),
+    }).pipe(
+      map(({ cliente, pipelineCase }) => {
+        const pipeline = this.toPipeline(cliente, pipelineCase ?? undefined);
         this.cache.set(pipeline.id, pipeline);
         return structuredClone(pipeline);
       }),
@@ -128,21 +138,27 @@ export class HttpPortfolioRepository implements PortfolioRepository {
     return of({ success: true, message, pipeline: structuredClone(pipeline) });
   }
 
-  private toPipeline(cliente: ClienteFinalDto): CompanyPipeline {
+  private toPipeline(cliente: ClienteFinalDto, pipelineCase?: PipelineCaseDto): CompanyPipeline {
+    const currentStageId = pipelineCase
+      ? mapBackendStageToFrontend(pipelineCase.stage)
+      : INITIAL_STAGE;
+    const powerAppSubmitted = pipelineCase ? isPowerAppStageCompleted(pipelineCase.stage) : false;
+
     return {
       id: cliente.clienteId,
       // El Cliente_Id de una empresa es su NIT (ver contexto de negocio).
       name: cliente.nombre?.trim() || 'Empresa sin nombre',
       nit: cliente.clienteId,
       clienteId: cliente.clienteId,
-      currentStageId: INITIAL_STAGE,
-      currentStageLabel: PIPELINE_STAGE_LABELS[INITIAL_STAGE],
-      progressPercent: computeProgress(INITIAL_STAGE),
+      currentStageId,
+      currentStageLabel: PIPELINE_STAGE_LABELS[currentStageId],
+      progressPercent: computeProgress(currentStageId),
       assignedCommercial: 'Por asignar',
       activationStatus: 'pending',
       phone: cliente.telefono,
       email: cliente.correo,
-      stages: buildStages(INITIAL_STAGE),
+      powerAppSubmittedAt: powerAppSubmitted ? pipelineCase!.updatedAt : undefined,
+      stages: buildStages(currentStageId),
     };
   }
 

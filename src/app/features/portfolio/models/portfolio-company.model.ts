@@ -16,6 +16,8 @@ export interface PortfolioCompanySummary {
   activationStatus: ActivationStatus;
   phone?: string | null;
   email?: string | null;
+  powerAppSubmittedAt?: string;
+  powerAppRadicado?: string | null;
 }
 
 export interface CompanyPipeline extends PortfolioCompanySummary {

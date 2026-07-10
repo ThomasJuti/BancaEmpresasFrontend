@@ -2,22 +2,28 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, Output, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { PowerAppService } from '../../services/power-app.service';
+import { PowerAppSubmissionStore } from '../../services/power-app-submission.store';
 import {
   PowerAppSubmitResponse,
   PuntoEntrega,
   TipoIdentificacionTarjetahabiente,
+  ValidationIssue,
 } from '../../models/power-app-submit.model';
 import { buildPrefillFromCliente } from '../../utils/build-prefill.util';
+import {
+  POWER_APP_FIELD_TAB,
+  hasBlockingValidationIssues,
+  validatePowerAppClient,
+} from '../../utils/power-app-client-validator';
 import { PowerAppResultPanelComponent } from '../power-app-result-panel/power-app-result-panel.component';
 
 type TabId = 'cliente' | 'tarjeta' | 'adjuntos' | 'entrega';
 
 interface AttachmentItem {
   name: string;
-  kind: 'pdf' | 'image';
 }
 
-const ALLOWED_EXTENSIONS = new Set(['pdf', 'jpg', 'jpeg', 'png']);
+const ALLOWED_EXTENSION = 'pdf';
 
 @Component({
   selector: 'app-power-app-form-modal',
@@ -29,10 +35,15 @@ const ALLOWED_EXTENSIONS = new Set(['pdf', 'jpg', 'jpeg', 'png']);
 export class PowerAppFormModalComponent implements OnChanges {
   private readonly fb = inject(FormBuilder);
   private readonly powerAppService = inject(PowerAppService);
+  private readonly submissionStore = inject(PowerAppSubmissionStore);
 
   @Input({ required: true }) companyNit!: string;
   @Input({ required: true }) companyName!: string;
+  @Input({ required: true }) companyId!: string;
   @Input() open = false;
+  @Input() readOnly = false;
+  @Input() persistedSubmittedAt?: string;
+  @Input() persistedRadicado?: string | null;
 
   @Output() closed = new EventEmitter<void>();
   @Output() submitted = new EventEmitter<PowerAppSubmitResponse>();
@@ -43,6 +54,7 @@ export class PowerAppFormModalComponent implements OnChanges {
   readonly loadError = signal<string | null>(null);
   readonly submitError = signal<string | null>(null);
   readonly result = signal<PowerAppSubmitResponse | null>(null);
+  readonly fieldIssues = signal<ValidationIssue[]>([]);
   readonly prefilledFields = signal<Set<string>>(new Set());
   readonly attachments = signal<AttachmentItem[]>([]);
   readonly dragOver = signal(false);
@@ -82,9 +94,26 @@ export class PowerAppFormModalComponent implements OnChanges {
   });
 
   ngOnChanges(): void {
-    if (this.open) {
-      this.loadPrefill();
+    if (!this.open) {
+      return;
     }
+
+    const stored = this.submissionStore.get(this.companyId);
+    if (this.readOnly && (this.persistedSubmittedAt || stored?.valid)) {
+      this.result.set(stored ?? this.buildPersistedResult());
+      this.loading.set(false);
+      this.loadError.set(null);
+      this.submitError.set(null);
+      this.fieldIssues.set([]);
+      return;
+    }
+
+    this.loadPrefill();
+  }
+
+  fieldMessage(field: string): string | null {
+    const issue = this.fieldIssues().find((item) => item.field === field && item.severity === 'error');
+    return issue?.message ?? null;
   }
 
   isPrefilled(field: string): boolean {
@@ -133,22 +162,42 @@ export class PowerAppFormModalComponent implements OnChanges {
     this.attachments.update((list) => list.filter((item) => item.name !== name));
   }
 
+  canRetrySubmission(): boolean {
+    if (this.readOnly || this.persistedSubmittedAt) {
+      return false;
+    }
+    const res = this.result();
+    return !!res && (res.decision === 'RECHAZADO' || res.decision === 'DEVUELTO');
+  }
+
   retryForm(): void {
+    if (!this.canRetrySubmission()) {
+      return;
+    }
+
+    const serverIssues = this.result()?.issues.filter((issue) => issue.severity === 'error') ?? [];
     this.result.set(null);
     this.submitError.set(null);
+    this.fieldIssues.set(serverIssues);
+
+    const firstError = serverIssues[0];
+    if (firstError) {
+      this.activeTab.set(POWER_APP_FIELD_TAB[firstError.field] ?? 'cliente');
+    }
   }
 
   submit(): void {
     this.submitError.set(null);
+    this.fieldIssues.set([]);
+
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       this.submitError.set('Complete los campos obligatorios en todas las pestañas.');
       return;
     }
 
-    const hasPdf = this.attachments().some((item) => item.kind === 'pdf');
-    if (!hasPdf) {
-      this.submitError.set('Debe adjuntar al menos un PDF (certificado de Cámara de Comercio).');
+    if (this.attachments().length === 0) {
+      this.submitError.set('Debe adjuntar el certificado de Cámara de Comercio en PDF.');
       this.activeTab.set('adjuntos');
       return;
     }
@@ -163,14 +212,29 @@ export class PowerAppFormModalComponent implements OnChanges {
       leadId: raw.leadId || raw.identificacionEmpresa,
     };
 
+    const clientIssues = validatePowerAppClient(payload);
+    this.fieldIssues.set(clientIssues);
+
+    if (hasBlockingValidationIssues(clientIssues)) {
+      const firstError = clientIssues.find((issue) => issue.severity === 'error');
+      if (firstError) {
+        this.activeTab.set(POWER_APP_FIELD_TAB[firstError.field] ?? 'cliente');
+      }
+      this.submitError.set(
+        'Revise los campos marcados antes de enviar. La solicitud no se envió al servidor.',
+      );
+      return;
+    }
+
     this.submitting.set(true);
     this.powerAppService.submit(payload).subscribe({
       next: (res) => {
         this.result.set(res);
         this.submitting.set(false);
         if (res.valid) {
-          this.submitted.emit(res);
+          this.submissionStore.save(this.companyId, res);
         }
+        this.submitted.emit(res);
       },
       error: () => {
         this.submitting.set(false);
@@ -182,43 +246,38 @@ export class PowerAppFormModalComponent implements OnChanges {
   private addFiles(files: File[]): void {
     if (files.length === 0) return;
 
-    const nit = this.form.controls.identificacionEmpresa.value.replace(/\D/g, '') || 'empresa';
-    const next: AttachmentItem[] = [];
-    let rejected = false;
-
-    for (const file of files) {
+    const pdfFile = files.find((file) => {
       const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-      if (!ALLOWED_EXTENSIONS.has(ext)) {
-        rejected = true;
-        continue;
-      }
+      return ext === ALLOWED_EXTENSION;
+    });
 
-      const kind: AttachmentItem['kind'] = ext === 'pdf' ? 'pdf' : 'image';
-      const name =
-        kind === 'pdf' && !file.name.toLowerCase().includes('camara')
-          ? `camara_comercio_${nit}.pdf`
-          : file.name;
-
-      if (!this.attachments().some((item) => item.name === name) && !next.some((item) => item.name === name)) {
-        next.push({ name, kind });
-      }
+    if (!pdfFile) {
+      this.submitError.set('Solo se permite un archivo PDF (certificado de Cámara de Comercio).');
+      return;
     }
 
-    if (rejected) {
-      this.submitError.set('Algunos archivos no son válidos. Solo se permiten PDF, JPG y PNG.');
-    } else {
-      this.submitError.set(null);
-    }
+    this.submitError.set(null);
+    this.attachments.set([{ name: pdfFile.name }]);
+  }
 
-    if (next.length > 0) {
-      this.attachments.update((list) => [...list, ...next]);
-    }
+  private buildPersistedResult(): PowerAppSubmitResponse {
+    return {
+      decision: 'APROBADO',
+      valid: true,
+      radicado: this.persistedRadicado ?? null,
+      issues: [],
+      summary: 'Solicitud LATAM Business enviada y aprobada.',
+      siguientePaso:
+        'Operaciones procesará realce, fabricación y armado de carpeta. Operaciones entregará la carpeta al gerente de relaciones.',
+      submittedAt: this.persistedSubmittedAt,
+    };
   }
 
   private loadPrefill(): void {
     this.loading.set(true);
     this.loadError.set(null);
     this.result.set(null);
+    this.fieldIssues.set([]);
     this.attachments.set([]);
     this.activeTab.set('cliente');
 

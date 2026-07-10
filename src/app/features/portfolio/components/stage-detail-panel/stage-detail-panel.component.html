@@ -80,9 +80,9 @@
     }
   </ul>
 
-  @if (stage.actions.length > 0) {
+  @if (visibleActions().length > 0) {
   <div class="actions">
-    @for (action of stage.actions; track action.id) {
+    @for (action of visibleActions(); track action.id) {
     <button
       type="button"
       [class]="action.kind === 'primary' ? 'btn-primary' : 'btn-secondary'"

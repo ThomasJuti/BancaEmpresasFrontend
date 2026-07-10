@@ -1,27 +1,68 @@
-<div class="result-panel">
-  <div class="result-head">
-    <span class="badge lg" [attr.data-status]="decisionBadge(result.decision)">{{ result.decision }}</span>
-    @if (result.radicado) {
-    <span class="radicado">Radicado: <strong>{{ result.radicado }}</strong></span>
-    }
+<div class="result-panel" [attr.data-tone]="decisionTone">
+  <div class="result-hero">
+    <div class="result-icon" aria-hidden="true">
+      @if (decisionTone === 'success') {
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+      } @else if (decisionTone === 'warning') {
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3 2 20h20L12 3z" /><line x1="12" y1="10" x2="12" y2="14" />
+      </svg>
+      } @else {
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+      </svg>
+      }
+    </div>
+
+    <div class="result-hero-text">
+      <span class="badge lg" [attr.data-status]="decisionBadge(result.decision)">{{ result.decision }}</span>
+      <h3 class="result-title">
+        @if (result.decision === 'APROBADO') {
+        Solicitud radicada con éxito
+        } @else if (result.decision === 'DEVUELTO') {
+        Solicitud devuelta para corrección
+        } @else {
+        Solicitud rechazada
+        }
+      </h3>
+      <p class="summary">{{ result.summary }}</p>
+    </div>
   </div>
 
-  <p class="summary">{{ result.summary }}</p>
+  @if (result.radicado) {
+  <div class="radicado-card">
+    <span class="radicado-label">Número de radicado GOPTC</span>
+    <strong class="radicado-value">{{ result.radicado }}</strong>
+    @if (result.submittedAt) {
+    <span class="radicado-date">Registrado el {{ result.submittedAt | date: 'medium' }}</span>
+    }
+  </div>
+  }
 
   @if (result.siguientePaso) {
-  <div class="alert-banner info">
-    <strong>Siguiente paso (operaciones)</strong>
+  <div class="next-step-card">
+    <div class="next-step-head">
+      <span class="next-step-icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="9" /><polyline points="12 8 12 12 15 15" />
+        </svg>
+      </span>
+      <strong>Siguiente paso · Operaciones</strong>
+    </div>
     <p>{{ result.siguientePaso }}</p>
   </div>
   }
 
   @if (result.issues.length > 0) {
   <div class="issues">
-    <h4>Observaciones</h4>
+    <h4>Observaciones a corregir</h4>
     <ul>
       @for (issue of result.issues; track issue.field + issue.code) {
       <li [class.error]="issue.severity === 'error'">
-        <strong>{{ issue.field }}</strong> — {{ issue.message }}
+        <span class="issue-field">{{ issue.field }}</span>
+        <span class="issue-message">{{ issue.message }}</span>
         @if (issue.suggestion) {
         <span class="hint">{{ issue.suggestion }}</span>
         }
@@ -32,11 +73,9 @@
   }
 
   <div class="result-actions">
-    @if (result.decision !== 'APROBADO') {
+    @if (allowRetry && result.decision !== 'APROBADO') {
     <button type="button" class="btn-secondary" (click)="retry.emit()">Corregir y reenviar</button>
     }
-    <button type="button" class="btn-primary" (click)="close.emit()">
-      {{ result.decision === 'APROBADO' ? 'Cerrar' : 'Cerrar sin guardar' }}
-    </button>
+    <button type="button" class="btn-primary" (click)="close.emit()">Cerrar</button>
   </div>
 </div>

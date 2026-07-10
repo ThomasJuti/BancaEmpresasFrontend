@@ -186,6 +186,20 @@
   padding: 24px 28px;
 }
 
+.field-error {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #c62828;
+}
+
+input.has-error,
+select.has-error {
+  border-color: #c62828;
+  box-shadow: 0 0 0 1px rgba(198, 40, 40, 0.15);
+}
+
 @media (max-width: 640px) {
   .modal-header,
   .tabs,

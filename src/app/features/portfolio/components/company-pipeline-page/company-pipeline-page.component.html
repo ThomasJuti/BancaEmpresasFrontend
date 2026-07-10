@@ -10,7 +10,9 @@
     <div>
       <h1 class="page-title" style="font-size: 32px">{{ p.name }}</h1>
       <p class="page-subtitle">NIT {{ p.nit }} · Comercial: {{ p.assignedCommercial }}</p>
-      @if (lastRadicado()) {
+      @if (p.powerAppRadicado) {
+      <p class="radicado-line">Radicado GOPTC: <strong>{{ p.powerAppRadicado }}</strong></p>
+      } @else if (lastRadicado()) {
       <p class="radicado-line">Último radicado GOPTC: <strong>{{ lastRadicado() }}</strong></p>
       }
     </div>
@@ -31,6 +33,7 @@
   @if (selectedStage(); as stage) {
   <app-stage-detail-panel
     [stage]="stage"
+    [pipeline]="p"
     [followUpSchedule]="stage.id === 'follow_up' ? followUpSchedule() : null"
     [actionLoading]="actionLoading()"
     (actionRequested)="onActionRequested($event)"
@@ -41,6 +44,10 @@
     [open]="showPowerAppModal()"
     [companyNit]="p.clienteId ?? p.nit"
     [companyName]="p.name"
+    [companyId]="p.id"
+    [readOnly]="powerAppReadOnly()"
+    [persistedSubmittedAt]="p.powerAppSubmittedAt"
+    [persistedRadicado]="p.powerAppRadicado"
     (closed)="closePowerAppModal()"
     (submitted)="onPowerAppSubmitted($event)"
   />

@@ -18,7 +18,12 @@
     <p class="state">Cargando datos de la base inicial…</p>
     } @else {
       @if (result(); as res) {
-      <app-power-app-result-panel [result]="res" (retry)="retryForm()" (close)="close()" />
+      <app-power-app-result-panel
+        [result]="res"
+        [allowRetry]="canRetrySubmission()"
+        (retry)="retryForm()"
+        (close)="close()"
+      />
       } @else {
     @if (loadError()) {
     <div class="alert-banner warning">{{ loadError() }}</div>
@@ -53,7 +58,10 @@
         <div class="field-row">
           <div class="field">
             <label>NIT empresa @if (isPrefilled('identificacionEmpresa')) { <span class="tag-prefill">Base</span> }</label>
-            <input formControlName="identificacionEmpresa" />
+            <input formControlName="identificacionEmpresa" [class.has-error]="fieldMessage('identificacionEmpresa')" />
+            @if (fieldMessage('identificacionEmpresa'); as msg) {
+            <span class="field-error">{{ msg }}</span>
+            }
           </div>
           <div class="field">
             <label>Nombre empresa @if (isPrefilled('nombreEmpresa')) { <span class="tag-prefill">Base</span> }</label>
@@ -71,7 +79,13 @@
           </div>
           <div class="field">
             <label>Número documento</label>
-            <input formControlName="numeroIdentificacionTarjetahabiente" />
+            <input
+              formControlName="numeroIdentificacionTarjetahabiente"
+              [class.has-error]="fieldMessage('numeroIdentificacionTarjetahabiente')"
+            />
+            @if (fieldMessage('numeroIdentificacionTarjetahabiente'); as msg) {
+            <span class="field-error">{{ msg }}</span>
+            }
           </div>
         </div>
         <div class="field">
@@ -98,7 +112,10 @@
           </div>
           <div class="field">
             <label>Cupo tarjeta nueva @if (isPrefilled('cupoTarjetaNueva')) { <span class="tag-prefill">Base</span> }</label>
-            <input type="number" formControlName="cupoTarjetaNueva" />
+            <input type="number" formControlName="cupoTarjetaNueva" [class.has-error]="fieldMessage('cupoTarjetaNueva')" />
+            @if (fieldMessage('cupoTarjetaNueva'); as msg) {
+            <span class="field-error">{{ msg }}</span>
+            }
           </div>
         </div>
         <div class="field-row">
@@ -117,9 +134,9 @@
       @if (activeTab() === 'adjuntos') {
       <section class="tab-panel">
         <div class="upload-section">
-          <label class="upload-label" for="power-app-files">Documentos de soporte</label>
+          <label class="upload-label" for="power-app-files">Certificado de Cámara de Comercio</label>
           <p class="upload-hint">
-            Incluya el certificado de Cámara de Comercio en PDF. Puede agregar imágenes JPG o PNG adicionales en el mismo cargue.
+            Adjunte un único archivo PDF con el certificado de Cámara de Comercio vigente. Si carga otro PDF, reemplazará el actual.
           </p>
 
           <label
@@ -133,8 +150,7 @@
               id="power-app-files"
               class="upload-input"
               type="file"
-              multiple
-              accept=".pdf,application/pdf,.jpg,.jpeg,.png,image/jpeg,image/png"
+              accept=".pdf,application/pdf"
               (change)="onFilesSelected($event)"
             />
             <span class="upload-icon" aria-hidden="true">
@@ -144,8 +160,8 @@
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
             </span>
-            <span class="upload-title">Arrastra archivos aquí o haz clic para seleccionar</span>
-            <span class="upload-formats">PDF obligatorio · JPG o PNG opcionales</span>
+            <span class="upload-title">Arrastra el PDF aquí o haz clic para seleccionar</span>
+            <span class="upload-formats">Solo PDF · un archivo</span>
           </label>
 
           @if (attachments().length > 0) {
@@ -153,7 +169,7 @@
             @for (file of attachments(); track file.name) {
             <li class="attachment-item">
               <div class="attachment-meta">
-                <span class="attachment-badge" [attr.data-kind]="file.kind">{{ file.kind === 'pdf' ? 'PDF' : 'IMG' }}</span>
+                <span class="attachment-badge" data-kind="pdf">PDF</span>
                 <span class="attachment-name" [title]="file.name">{{ file.name }}</span>
               </div>
               <button type="button" class="attachment-remove" (click)="removeAttachment(file.name)" aria-label="Quitar archivo">
@@ -163,7 +179,10 @@
             }
           </ul>
           } @else {
-          <p class="upload-empty">Aún no hay archivos cargados.</p>
+          <p class="upload-empty">Aún no hay archivo cargado.</p>
+          @if (fieldMessage('archivosAdjuntos'); as msg) {
+          <span class="field-error">{{ msg }}</span>
+          }
           }
         </div>
       </section>
@@ -174,7 +193,14 @@
         <div class="field-row">
           <div class="field">
             <label>Código oficina / centro servicio</label>
-            <input formControlName="codigoOficinaCentroServicio" placeholder="Ej. 610" />
+            <input
+              formControlName="codigoOficinaCentroServicio"
+              placeholder="Ej. 610"
+              [class.has-error]="fieldMessage('codigoOficinaCentroServicio')"
+            />
+            @if (fieldMessage('codigoOficinaCentroServicio'); as msg) {
+            <span class="field-error">{{ msg }}</span>
+            }
           </div>
           <div class="field">
             <label>Ciudad punto entrega @if (isPrefilled('ciudadPuntoEntrega')) { <span class="tag-prefill">Base</span> }</label>

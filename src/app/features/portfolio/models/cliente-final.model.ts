@@ -1,6 +1,8 @@
 // DTO de la respuesta del backend (feature file-matching): cliente elegible
 // resultante del cruce Base Potencial × CEC × SG. Es el universo de leads que
 // entra al pipeline de colocación en la etapa de llamadas de venta.
+import { PipelineCaseDto } from './pipeline-case.model';
+
 export interface ClienteFinalDto {
   clienteId: string;
   nombre: string | null;
@@ -24,4 +26,5 @@ export interface ClientesFinalesPaginatedResponse extends ClientesFinalesRespons
 
 export interface ClienteFinalByIdResponse {
   cliente: ClienteFinalDto;
+  pipelineCase?: PipelineCaseDto;
 }

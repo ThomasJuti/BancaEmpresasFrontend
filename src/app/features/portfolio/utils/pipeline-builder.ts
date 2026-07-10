@@ -23,6 +23,7 @@ export function stageActions(stageId: PipelineStageId): PipelineAction[] {
     ],
     power_app: [
       { id: 'fill_power_app', label: 'Diligenciar solicitud', kind: 'primary' },
+      { id: 'view_power_app_result', label: 'Ver solicitud enviada', kind: 'secondary' },
       { id: 'mark_form_complete', label: 'Marcar formulario completo', kind: 'secondary', requiresConfirmation: true, confirmationMessage: '¿Confirmar que el formulario de realce fue diligenciado?' },
     ],
     operations: [
@@ -119,6 +120,20 @@ export function computeProgress(currentStageId: PipelineStageId): number {
   return Math.round(((index + 0.5) / PIPELINE_STAGE_ORDER.length) * 100);
 }
 
+export function resolveStageActions(stage: PipelineStage, pipeline: CompanyPipeline): PipelineAction[] {
+  if (stage.id === 'power_app' && pipeline.powerAppSubmittedAt) {
+    return stage.actions.filter((action) => action.id === 'view_power_app_result');
+  }
+
+  if (stage.id === 'power_app') {
+    return stage.actions.filter(
+      (action) => action.id !== 'view_power_app_result' && action.id !== 'mark_form_complete',
+    );
+  }
+
+  return stage.actions;
+}
+
 export function summaryFromPipeline(pipeline: CompanyPipeline): PortfolioCompanySummary {
   const { stages, ...summary } = pipeline;
   void stages;
@@ -146,12 +161,15 @@ export function applyPipelineAction(
         s.status = 'completed';
         s.completedAt = new Date().toISOString();
       });
+      pipeline.powerAppSubmittedAt = pipeline.powerAppSubmittedAt ?? new Date().toISOString();
       advanceStage(pipeline, 'power_app');
       return actionId === 'power_app_approved'
         ? 'Solicitud aprobada. Operaciones puede iniciar realce.'
         : 'Formulario Power App marcado como completo.';
     case 'fill_power_app':
       return 'Abrir formulario de solicitud.';
+    case 'view_power_app_result':
+      return 'Consultar solicitud enviada.';
     case 'resend_goptc':
       return 'Reenvío a GOPTC simulado correctamente.';
     case 'view_ops_status':
