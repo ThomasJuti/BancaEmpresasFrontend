@@ -55,6 +55,17 @@
   text-align: center;
 }
 
+.embedded-history .call-dashboard-media {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.embedded-history .transcript-panel .chat {
+  max-height: none;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
 .embedded-history .history-toolbar {
   margin-bottom: 12px;
 }
@@ -349,7 +360,7 @@
   word-break: break-word;
 }
 
-.chat {
+.detail .chat {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -357,21 +368,21 @@
   overflow-y: auto;
 }
 
-.msg {
+.detail .msg {
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 14px;
 }
 
-.msg.assistant {
+.detail .msg.assistant {
   background: var(--blue-tint);
 }
 
-.msg.user {
+.detail .msg.user {
   background: #f3f4f6;
 }
 
-.msg .who {
+.detail .msg .who {
   display: block;
   font-size: 11px;
   font-weight: 700;
@@ -466,6 +477,85 @@
 
 .small {
   font-size: 12px;
+}
+
+.manual-registration-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.manual-registration-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.manual-contact-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.manual-contact-card strong {
+  font-size: 16px;
+  color: var(--heading);
+}
+
+.manual-protocol-grid {
+  margin-top: 0;
+}
+
+.manual-duration {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.manual-notes-block h5,
+.manual-notes-block h6 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--heading);
+}
+
+.manual-notes-block p,
+.manual-notes-block .summary-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--body);
+}
+
+.protocol-value.emphasis {
+  font-weight: 600;
+  color: var(--heading);
+}
+
+.call-item-notes,
+.picker-notes {
+  display: block;
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 4px;
+}
+
+.origin-tag.manual {
+  font-weight: 700;
 }
 
 @media (max-width: 960px) {

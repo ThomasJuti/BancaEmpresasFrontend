@@ -30,6 +30,8 @@
         </svg>
         } @else if (step.status === 'in_progress') {
         <span class="pulse"></span>
+        } @else if (step.status === 'failed') {
+        <span class="fail-mark">✕</span>
         } @else {
         <span class="empty"></span>
         }
@@ -53,7 +55,7 @@
           <span class="chevron" [class.open]="isExpanded(step.id)">›</span>
           }
         </button>
-        <p>{{ subStepDescription(step.id, step.description) }}</p>
+        <p>{{ subStepDescription(step.id, step.description, step.status) }}</p>
         <div class="meta">
           @if (step.assignee) {
           <span>Responsable: {{ step.assignee }}</span>
@@ -76,7 +78,8 @@
             [representanteLegalNombre]="pipeline.representanteLegalNombre ?? null"
             [pipelineCaseId]="pipeline.pipelineCaseId ?? null"
             [focusAction]="callsFocusAction"
-            (callsChanged)="callsChanged.emit()"
+            (callsChanged)="onCallsChanged($event)"
+            (openRecording)="onOpenRecording()"
           />
         </div>
         }
@@ -94,7 +97,7 @@
             [representanteLegalNombre]="pipeline.representanteLegalNombre ?? null"
             [selectedCallId]="selectedCallId"
             [refreshKey]="callsRefreshKey"
-            (callsChanged)="callsChanged.emit()"
+            (callsChanged)="onCallsChanged($event)"
             (goToContact)="onGoToContact()"
           />
         </div>

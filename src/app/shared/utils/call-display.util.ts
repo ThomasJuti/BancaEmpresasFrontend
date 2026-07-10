@@ -206,6 +206,35 @@ export function callContactTitle(
   );
 }
 
+export function isCallProcessing(call: CallDetail): boolean {
+  return (
+    call.status === 'completed' &&
+    !isManualCall(call) &&
+    identityVerified(call) === null &&
+    clientInterested(call) === null &&
+    !call.summary
+  );
+}
+
+export function isCallTerminal(call: Pick<CallDetail, 'status'>): boolean {
+  return call.status === 'completed' || call.status === 'failed';
+}
+
+export function isCallQualifiedForPipeline(call: CallDetail): boolean {
+  if (isCallSuccess(call.successEvaluation)) {
+    return true;
+  }
+  return identityVerified(call) === true && clientInterested(call) === true;
+}
+
+export function manualNotesPreview(call: CallDetail, maxLen = 60): string | null {
+  const text = call.summary?.trim();
+  if (!text || !isManualCall(call)) {
+    return null;
+  }
+  return text.length > maxLen ? `${text.slice(0, maxLen)}…` : text;
+}
+
 export function callContactSubtitle(call: CallDetail): string {
   const parts: string[] = [];
   if (call.variables?.['empresa']) {

@@ -211,8 +211,28 @@ export interface CallStateInput {
   identityVerified?: boolean | null;
   clientInterested?: boolean | null;
   isManual?: boolean;
+  processing?: boolean;
   at?: string;
   callId?: string;
+}
+
+function resolveProtocolSubStep(
+  value: boolean | null | undefined,
+  call: CallStateInput,
+): StepStatus {
+  if (call.status === 'queued' || call.status === 'initiated' || call.status === 'in_progress') {
+    return 'pending';
+  }
+  if (call.processing) {
+    return 'pending';
+  }
+  if (value === true) {
+    return 'completed';
+  }
+  if (call.status === 'completed' || call.status === 'failed') {
+    return 'failed';
+  }
+  return 'pending';
 }
 
 function setSubStep(stage: PipelineStage, id: string, status: StepStatus, at?: string): void {
@@ -254,19 +274,25 @@ export function applyCallState(pipeline: CompanyPipeline, call: CallStateInput |
       break;
     case 'failed':
     case 'completed':
+      if (call.processing) {
+        setSubStep(stage, 'contact', 'in_progress');
+        setSubStep(stage, 'benefits', 'pending');
+        setSubStep(stage, 'acceptance', 'pending');
+        setSubStep(stage, 'recording', 'pending');
+        break;
+      }
+
       setSubStep(stage, 'contact', 'completed', at);
 
-      if (call.identityVerified === true) {
-        setSubStep(stage, 'benefits', 'completed', at);
-      } else {
-        setSubStep(stage, 'benefits', 'pending');
-      }
-
-      if (call.clientInterested === true) {
-        setSubStep(stage, 'acceptance', 'completed', at);
-      } else {
-        setSubStep(stage, 'acceptance', 'pending');
-      }
+      const benefitsStatus = resolveProtocolSubStep(call.identityVerified, call);
+      const acceptanceStatus = resolveProtocolSubStep(call.clientInterested, call);
+      setSubStep(stage, 'benefits', benefitsStatus, benefitsStatus === 'completed' ? at : undefined);
+      setSubStep(
+        stage,
+        'acceptance',
+        acceptanceStatus,
+        acceptanceStatus === 'completed' ? at : undefined,
+      );
 
       setSubStep(
         stage,

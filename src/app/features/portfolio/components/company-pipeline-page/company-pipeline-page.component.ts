@@ -13,6 +13,7 @@ import { computeProgress } from '../../utils/pipeline-builder';
 import { canOpenPowerApp, isStageReachable } from '../../utils/pipeline-access.util';
 import { PipelineStepperComponent } from '../pipeline-stepper/pipeline-stepper.component';
 import { StageDetailPanelComponent } from '../stage-detail-panel/stage-detail-panel.component';
+import { CallsChangedEvent } from '../company-calls-panel/company-calls-panel.component';
 
 @Component({
   selector: 'app-company-pipeline-page',
@@ -383,9 +384,11 @@ export class CompanyPipelinePageComponent implements OnInit {
     setTimeout(() => this.feedback.set(null), 3500);
   }
 
-  onCallsChanged(): void {
+  onCallsChanged(event?: CallsChangedEvent | void): void {
     const p = this.pipeline();
     if (!p) return;
+    const payload = event && typeof event === 'object' ? event : undefined;
+
     this.callsRefreshKey.update((key) => key + 1);
     this.repository.invalidateCompanyCache(p.id);
     const nit = p.clienteId ?? p.nit;
@@ -398,15 +401,27 @@ export class CompanyPipelinePageComponent implements OnInit {
         this.pipeline.set(updated);
         const callsStage = updated.stages.find((s) => s.id === 'calls');
         const linkedId = callsStage?.linkedCallId ?? null;
-        if (linkedId) {
-          this.callsSelectedId.set(linkedId);
-        }
         const recordingStep = callsStage?.subSteps.find((s) => s.id === 'recording');
         const recordingReady =
           recordingStep?.status === 'in_progress' || recordingStep?.status === 'completed';
-        if (recordingReady) {
-          this.expandedSubStepId.set('recording');
+        const contactStep = callsStage?.subSteps.find((s) => s.id === 'contact');
+        const contactActive = contactStep?.status === 'in_progress';
+
+        if (payload?.pending || contactActive) {
+          this.selectedStageId.set('calls');
+          this.expandedSubStepId.set('contact');
+          if (payload?.callId) {
+            this.callsSelectedId.set(payload.callId);
+          } else if (linkedId) {
+            this.callsSelectedId.set(linkedId);
+          }
+        } else if (payload?.terminal || recordingReady) {
+          this.callsSelectedId.set(payload?.callId ?? linkedId);
+          if (recordingReady) {
+            this.expandedSubStepId.set('recording');
+          }
         }
+
         if (canOpenPowerApp(updated)) {
           this.selectedStageId.set('power_app');
           this.showFeedback('Contacto calificado. Ya puede diligenciar la solicitud Power App.');

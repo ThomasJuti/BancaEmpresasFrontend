@@ -17,7 +17,8 @@ export function stepStatusLabel(status: string): string {
     pending: 'Pendiente',
     in_progress: 'En curso',
     completed: 'Completado',
-    blocked: 'Bloqueado',
+    blocked: 'Pendiente',
+    failed: 'No detectado',
   };
   return labels[status] ?? status;
 }
