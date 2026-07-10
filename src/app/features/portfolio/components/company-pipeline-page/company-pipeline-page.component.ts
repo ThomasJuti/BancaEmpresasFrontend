@@ -10,6 +10,7 @@ import { CompanyPipeline } from '../../models/portfolio-company.model';
 import { PortfolioRepository, PORTFOLIO_REPOSITORY } from '../../models/portfolio.repository';
 import { activationStatusLabel, stepStatusLabel } from '../../utils/follow-up.util';
 import { computeProgress } from '../../utils/pipeline-builder';
+import { canOpenPowerApp, isStageReachable } from '../../utils/pipeline-access.util';
 import { PipelineStepperComponent } from '../pipeline-stepper/pipeline-stepper.component';
 import { StageDetailPanelComponent } from '../stage-detail-panel/stage-detail-panel.component';
 
@@ -50,17 +51,36 @@ export class CompanyPipelinePageComponent implements OnInit {
   readonly callsRefreshKey = signal(0);
   readonly callsCount = signal(0);
 
+  readonly linkedCallId = computed(() => {
+    const p = this.pipeline();
+    if (!p) return null;
+    return p.stages.find((s) => s.id === 'calls')?.linkedCallId ?? null;
+  });
+
   readonly selectedStage = computed(() => {
     const p = this.pipeline();
     if (!p) return null;
     return p.stages.find((s) => s.id === this.selectedStageId()) ?? null;
   });
 
+  readonly backUrl = computed(() =>
+    this.listOrigin() === 'pendientes' ? '/portafolio/pendientes' : '/portafolio/pipeline',
+  );
+
+  readonly backLabel = computed(() =>
+    this.listOrigin() === 'pendientes' ? '← Volver a por llamar' : '← Volver a en gestión',
+  );
+
+  private readonly listOrigin = signal<'pendientes' | 'pipeline'>('pipeline');
+
   statusLabel = activationStatusLabel;
   stepLabel = stepStatusLabel;
 
   ngOnInit(): void {
     this.route.queryParamMap.subscribe((query) => {
+      const origen = query.get('origen');
+      this.listOrigin.set(origen === 'pendientes' ? 'pendientes' : 'pipeline');
+
       const etapa = query.get('etapa') as PipelineStageId | null;
       const accion = query.get('accion');
       if (etapa && ['calls', 'power_app', 'operations', 'card_delivery', 'follow_up'].includes(etapa)) {
@@ -103,6 +123,11 @@ export class CompanyPipelinePageComponent implements OnInit {
   }
 
   selectStage(stageId: PipelineStageId): void {
+    const p = this.pipeline();
+    if (!p || !isStageReachable(stageId, p)) {
+      this.showFeedback('Esta etapa aún no está disponible. Complete las etapas anteriores.');
+      return;
+    }
     this.selectedStageId.set(stageId);
     this.expandedSubStepId.set(null);
     this.callsFocusAction.set(null);
@@ -119,6 +144,11 @@ export class CompanyPipelinePageComponent implements OnInit {
     if (action.id === 'fill_power_app' || action.id === 'view_power_app_result') {
       const p = this.pipeline();
       if (!p) return;
+
+      if (action.id === 'fill_power_app' && !canOpenPowerApp(p)) {
+        this.showFeedback('Complete el contacto telefónico calificado para habilitar la solicitud Power App.');
+        return;
+      }
 
       const stored = this.submissionStore.get(p.id);
       if (stored?.valid || p.powerAppSubmittedAt) {
@@ -356,7 +386,6 @@ export class CompanyPipelinePageComponent implements OnInit {
   onCallsChanged(): void {
     const p = this.pipeline();
     if (!p) return;
-    this.expandedSubStepId.set('recording');
     this.callsRefreshKey.update((key) => key + 1);
     this.repository.invalidateCompanyCache(p.id);
     const nit = p.clienteId ?? p.nit;
@@ -367,9 +396,20 @@ export class CompanyPipelinePageComponent implements OnInit {
       next: (refreshed) => {
         const updated = this.applyStoredSubmission(refreshed);
         this.pipeline.set(updated);
-        const linkedId = updated.stages.find((s) => s.id === 'calls')?.linkedCallId ?? null;
+        const callsStage = updated.stages.find((s) => s.id === 'calls');
+        const linkedId = callsStage?.linkedCallId ?? null;
         if (linkedId) {
           this.callsSelectedId.set(linkedId);
+        }
+        const recordingStep = callsStage?.subSteps.find((s) => s.id === 'recording');
+        const recordingReady =
+          recordingStep?.status === 'in_progress' || recordingStep?.status === 'completed';
+        if (recordingReady) {
+          this.expandedSubStepId.set('recording');
+        }
+        if (canOpenPowerApp(updated)) {
+          this.selectedStageId.set('power_app');
+          this.showFeedback('Contacto calificado. Ya puede diligenciar la solicitud Power App.');
         }
       },
     });
@@ -392,14 +432,16 @@ export class CompanyPipelinePageComponent implements OnInit {
     const etapa = query.get('etapa');
     const callsStage = pipeline.stages.find((s) => s.id === 'calls');
     const linkedCallId = callsStage?.linkedCallId;
-    const hasHistory = historyCount > 0 || !!linkedCallId;
+    const recordingStep = callsStage?.subSteps.find((s) => s.id === 'recording');
+    const recordingReady =
+      recordingStep?.status === 'in_progress' || recordingStep?.status === 'completed';
 
     if (accion === 'auto' || accion === 'manual') {
       this.expandedSubStepId.set('contact');
       return;
     }
 
-    if (historial || hasHistory) {
+    if ((historial || historyCount > 0) && recordingReady) {
       this.expandedSubStepId.set('recording');
       if (linkedCallId) {
         this.callsSelectedId.set(linkedCallId);
@@ -407,7 +449,7 @@ export class CompanyPipelinePageComponent implements OnInit {
       return;
     }
 
-    if (etapa === 'calls') {
+    if (etapa === 'calls' || historyCount > 0) {
       this.expandedSubStepId.set('contact');
     }
   }

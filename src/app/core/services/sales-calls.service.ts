@@ -8,6 +8,7 @@ export interface InitiateCallRequest {
   customerName?: string;
   customerEmail?: string;
   variables?: Record<string, string>;
+  caseId?: string;
 }
 
 export interface InitiatedCall {

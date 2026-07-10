@@ -218,16 +218,25 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
   }
 
   openCompany(company: PortfolioCompanySummary): void {
-    void this.router.navigate(['/portafolio', company.id]);
+    void this.router.navigate(['/portafolio', company.id], {
+      queryParams: { origen: this.listOrigin() },
+    });
   }
 
   contactCompany(company: PortfolioCompanySummary, event?: Event): void {
     event?.stopPropagation();
-    const queryParams: Record<string, string> = { etapa: 'calls' };
+    const queryParams: Record<string, string> = {
+      etapa: 'calls',
+      origen: this.listOrigin(),
+    };
     if (company.hasCall) {
       queryParams['historial'] = '1';
     }
     void this.router.navigate(['/portafolio', company.id], { queryParams });
+  }
+
+  private listOrigin(): 'pendientes' | 'pipeline' {
+    return this.isPendingSection() ? 'pendientes' : 'pipeline';
   }
 
   isSelected(company: PortfolioCompanySummary): boolean {

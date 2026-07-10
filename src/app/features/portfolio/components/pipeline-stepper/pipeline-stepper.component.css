@@ -58,6 +58,11 @@
   color: var(--peligro);
 }
 
+.step:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .label {
   font-size: 13px;
   color: var(--body);

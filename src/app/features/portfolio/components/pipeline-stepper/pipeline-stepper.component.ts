@@ -17,6 +17,9 @@ export class PipelineStepperComponent {
   readonly order = PIPELINE_STAGE_ORDER;
 
   selectStage(stageId: PipelineStageId): void {
+    if (this.stageById(stageId)?.status === 'blocked') {
+      return;
+    }
     this.stageSelected.emit(stageId);
   }
 

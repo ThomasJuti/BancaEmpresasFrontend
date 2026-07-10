@@ -1,10 +1,12 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { catchError, map, Observable, of, throwError } from 'rxjs';
-import { FILE_MATCHING_API, POWER_APPS_API } from '../../../core/config/api.config';
+import { FILE_MATCHING_API, POWER_APPS_API, SALES_CALLS_API } from '../../../core/config/api.config';
 import { ClienteFinal, ClienteFinalByIdResponse, ClientesFinalesResponse } from '../models/cliente-final.model';
+import { PowerAppHandoffPrefill } from '../models/power-app-prefill.model';
 import { PowerAppSubmitRequest, PowerAppSubmitResponse } from '../models/power-app-submit.model';
 import { RuesConsultarResponse, RuesFormSnapshot } from '../models/rues-consultation.model';
+import { normalizeIdentification } from '../utils/colombian-id.util';
 
 @Injectable({ providedIn: 'root' })
 export class PowerAppService {
@@ -17,7 +19,7 @@ export class PowerAppService {
   }
 
   getClienteByNit(nit: string): Observable<ClienteFinal | null> {
-    const clienteId = nit.trim();
+    const clienteId = normalizeIdentification(nit.trim());
     if (!clienteId) {
       return of(null);
     }
@@ -30,6 +32,16 @@ export class PowerAppService {
         map((res) => res.cliente ?? null),
         catchError(() => of(null)),
       );
+  }
+
+  getHandoffPrefill(callId: string): Observable<PowerAppHandoffPrefill | null> {
+    if (!callId.trim()) {
+      return of(null);
+    }
+
+    return this.http
+      .get<PowerAppHandoffPrefill>(`${SALES_CALLS_API}/calls/${encodeURIComponent(callId)}/handoff`)
+      .pipe(catchError(() => of(null)));
   }
 
   consultarRues(nit: string, form?: RuesFormSnapshot): Observable<RuesConsultarResponse> {

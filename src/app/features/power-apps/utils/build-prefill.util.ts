@@ -1,4 +1,5 @@
 import { ClienteFinal } from '../models/cliente-final.model';
+import { PowerAppHandoffPrefill } from '../models/power-app-prefill.model';
 import { PowerAppFormValue, TipoIdentificacionTarjetahabiente } from '../models/power-app-submit.model';
 import { inferTarjetahabienteDocType } from './colombian-id.util';
 
@@ -105,4 +106,56 @@ export function buildPrefillFromCliente(
   if (value.direccionPuntoComercial) prefilledFields.add('direccionPuntoComercial');
 
   return { value, prefilledFields };
+}
+
+export function buildPrefillFromHandoff(
+  handoff: PowerAppHandoffPrefill,
+  base: PowerAppFormValue,
+  basePrefilled: Set<string>,
+): { value: PowerAppFormValue; prefilledFields: Set<string> } {
+  const prefilledFields = new Set(basePrefilled);
+  const value: PowerAppFormValue = { ...base };
+
+  const assign = <K extends keyof PowerAppFormValue>(key: K, source: PowerAppHandoffPrefill[keyof PowerAppHandoffPrefill]) => {
+    if (source == null || source === '' || (typeof source === 'number' && source <= 0 && key !== 'cupoDisponibleCec')) {
+      return;
+    }
+    value[key] = source as PowerAppFormValue[K];
+    prefilledFields.add(key as string);
+  };
+
+  assign('leadId', handoff.leadId);
+  assign('segmento', handoff.segmento);
+  assign('tipoIdentificacionTarjetahabiente', handoff.tipoIdentificacionTarjetahabiente);
+  assign('numeroIdentificacionTarjetahabiente', handoff.numeroIdentificacionTarjetahabiente);
+  assign('unidadNegocios', handoff.unidadNegocios);
+  assign('identificacionEmpresa', handoff.identificacionEmpresa);
+  assign('nombreEmpresa', handoff.nombreEmpresa);
+  assign('nombreTarjetahabiente', handoff.nombreTarjetahabiente);
+  assign('binProducto', handoff.binProducto);
+  assign('cargoDebitoAutomatico', handoff.cargoDebitoAutomatico);
+  assign('cupoTarjetaNueva', handoff.cupoTarjetaNueva);
+  assign('cupoDisponibleCec', handoff.cupoDisponibleCec);
+  assign('codigoOficinaCentroServicio', handoff.codigoOficinaCentroServicio);
+  assign('ciudadPuntoEntrega', handoff.ciudadPuntoEntrega);
+  assign('direccionPuntoComercial', handoff.direccionPuntoComercial);
+  assign('puntoEntrega', handoff.puntoEntrega);
+
+  return { value, prefilledFields };
+}
+
+export function applyPipelineFallback(
+  value: PowerAppFormValue,
+  prefilledFields: Set<string>,
+  representanteLegalNombre?: string | null,
+): { value: PowerAppFormValue; prefilledFields: Set<string> } {
+  const next = { ...value };
+  const fields = new Set(prefilledFields);
+
+  if (!next.nombreTarjetahabiente?.trim() && representanteLegalNombre?.trim()) {
+    next.nombreTarjetahabiente = representanteLegalNombre.trim();
+    fields.add('nombreTarjetahabiente');
+  }
+
+  return { value: next, prefilledFields: fields };
 }

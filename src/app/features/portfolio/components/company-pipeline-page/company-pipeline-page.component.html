@@ -1,4 +1,4 @@
-<a class="link-back" routerLink="/portafolio/pipeline">← Volver a en gestión</a>
+<a class="link-back" [routerLink]="backUrl()">{{ backLabel() }}</a>
 
 @if (loading()) {
 <p class="state">Cargando pipeline…</p>
@@ -51,6 +51,8 @@
     [companyNit]="p.clienteId ?? p.nit"
     [companyName]="p.name"
     [companyId]="p.id"
+    [linkedCallId]="linkedCallId()"
+    [representanteLegalNombre]="p.representanteLegalNombre ?? null"
     [readOnly]="powerAppReadOnly()"
     [persistedSubmittedAt]="p.powerAppSubmittedAt"
     [persistedRadicado]="p.powerAppRadicado"

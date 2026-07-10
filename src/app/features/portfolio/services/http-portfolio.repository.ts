@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { catchError, forkJoin, map, Observable, of, throwError } from 'rxjs';
+import { catchError, forkJoin, map, Observable, of, switchMap, throwError } from 'rxjs';
 import { FILE_MATCHING_API, PIPELINE_API } from '../../../core/config/api.config';
 import { CallDetail, SalesCallsService } from '../../../core/services/sales-calls.service';
 import { PipelineCaseDto, PipelineCaseResponse } from '../models/pipeline-case.model';
@@ -129,11 +129,19 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       detail: this.fetchClienteDetail(companyId),
       calls: this.listCallsSafe(),
     }).pipe(
-      map(({ detail, calls }) => {
-        const pipeline = this.toPipeline(detail.cliente, detail.pipelineCase);
-        applyCallState(pipeline, this.callStateFor(detail.cliente.clienteId, calls));
-        this.cache.set(pipeline.id, pipeline);
-        return structuredClone(pipeline);
+      switchMap(({ detail, calls }) => {
+        const pipelineCase$ = detail.pipelineCase
+          ? of(detail.pipelineCase)
+          : this.ensurePipelineCase(companyId);
+
+        return pipelineCase$.pipe(
+          map((pipelineCase) => {
+            const pipeline = this.toPipeline(detail.cliente, pipelineCase ?? undefined);
+            applyCallState(pipeline, this.callStateFor(detail.cliente.clienteId, calls));
+            this.cache.set(pipeline.id, pipeline);
+            return structuredClone(pipeline);
+          }),
+        );
       }),
     );
   }
@@ -183,6 +191,19 @@ export class HttpPortfolioRepository implements PortfolioRepository {
     );
   }
 
+  private ensurePipelineCase(leadId: string): Observable<PipelineCaseDto | null> {
+    const params = new HttpParams().set('ensure', 'true');
+    return this.http
+      .get<PipelineCaseResponse>(
+        `${PIPELINE_API}/cases/by-lead/${encodeURIComponent(leadId)}`,
+        { params },
+      )
+      .pipe(
+        map((response) => response.case),
+        catchError(() => of(null)),
+      );
+  }
+
   /** Lista de llamadas tolerante a fallos: si el endpoint falla, no rompe el portafolio. */
   private listCallsSafe(): Observable<CallDetail[]> {
     return this.salesCalls.listCalls().pipe(catchError(() => of([] as CallDetail[])));
@@ -201,6 +222,8 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       status: latest.status,
       hasRecording: !!latest.recordingUrl || (!isManualCall(latest) && latest.status === 'completed'),
       qualified: this.isQualified(latest),
+      identityVerified: identityVerified(latest),
+      clientInterested: clientInterested(latest),
       isManual: isManualCall(latest),
       at: latest.updatedAt,
       callId: latest.id,
@@ -244,6 +267,8 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       phone: cliente.telefono,
       email: cliente.correo,
       representanteLegalNombre: cliente.representanteLegalNombre,
+      pipelineCaseId: pipelineCase?.id,
+      pipelineCaseStage: pipelineCase?.stage,
       powerAppSubmittedAt: powerAppSubmitted ? pipelineCase!.updatedAt : undefined,
       stages: buildStages(currentStageId),
     };

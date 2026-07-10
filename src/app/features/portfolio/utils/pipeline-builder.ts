@@ -11,6 +11,7 @@ import {
   CompanyPipeline,
   PortfolioCompanySummary,
 } from '../models/portfolio-company.model';
+import { canOpenPowerApp } from './pipeline-access.util';
 
 // Construcción del pipeline HITL de colocación (etapas, sub-pasos y acciones).
 // Compartido por HttpPortfolioRepository para evitar duplicar la definición del proceso.
@@ -93,7 +94,7 @@ export function buildStages(
   const currentIndex = PIPELINE_STAGE_ORDER.indexOf(currentStageId);
 
   return PIPELINE_STAGE_ORDER.map((id, index) => {
-    let status: StepStatus = 'pending';
+    let status: StepStatus = 'blocked';
     if (index < currentIndex) {
       status = 'completed';
     } else if (index === currentIndex) {
@@ -124,6 +125,9 @@ export function resolveStageActions(stage: PipelineStage, pipeline: CompanyPipel
   }
 
   if (stage.id === 'power_app') {
+    if (!canOpenPowerApp(pipeline)) {
+      return [];
+    }
     return stage.actions.filter(
       (action) => action.id !== 'view_power_app_result' && action.id !== 'mark_form_complete',
     );
@@ -204,6 +208,8 @@ export interface CallStateInput {
   status: 'queued' | 'initiated' | 'in_progress' | 'completed' | 'failed';
   hasRecording: boolean;
   qualified: boolean;
+  identityVerified?: boolean | null;
+  clientInterested?: boolean | null;
   isManual?: boolean;
   at?: string;
   callId?: string;
@@ -222,8 +228,9 @@ function setSubStep(stage: PipelineStage, id: string, status: StepStatus, at?: s
 
 /**
  * Refleja el estado real de la llamada de venta en el stage `calls` (checks de
- * proceso). Si la llamada quedó calificada (identidad verificada + interés),
- * avanza el pipeline a `power_app`.
+ * proceso). Solo el contacto inicial queda activo hasta que la llamada termine;
+ * los checks de beneficios/aceptación dependen de las respuestas; la grabación
+ * se habilita recién cuando el contacto quedó procesado (completado o fallido).
  */
 export function applyCallState(pipeline: CompanyPipeline, call: CallStateInput | undefined): void {
   const stage = pipeline.stages.find((s) => s.id === 'calls');
@@ -239,26 +246,35 @@ export function applyCallState(pipeline: CompanyPipeline, call: CallStateInput |
   switch (call.status) {
     case 'queued':
     case 'initiated':
-      setSubStep(stage, 'contact', 'in_progress');
-      setSubStep(stage, 'recording', 'in_progress');
-      break;
     case 'in_progress':
-      setSubStep(stage, 'contact', 'completed', at);
-      setSubStep(stage, 'benefits', 'in_progress');
+      setSubStep(stage, 'contact', 'in_progress');
+      setSubStep(stage, 'benefits', 'pending');
+      setSubStep(stage, 'acceptance', 'pending');
+      setSubStep(stage, 'recording', 'pending');
       break;
     case 'failed':
-      setSubStep(stage, 'contact', 'completed', at);
-      break;
     case 'completed':
       setSubStep(stage, 'contact', 'completed', at);
-      setSubStep(stage, 'benefits', 'completed', at);
-      setSubStep(stage, 'acceptance', 'completed', at);
+
+      if (call.identityVerified === true) {
+        setSubStep(stage, 'benefits', 'completed', at);
+      } else {
+        setSubStep(stage, 'benefits', 'pending');
+      }
+
+      if (call.clientInterested === true) {
+        setSubStep(stage, 'acceptance', 'completed', at);
+      } else {
+        setSubStep(stage, 'acceptance', 'pending');
+      }
+
       setSubStep(
         stage,
         'recording',
         call.hasRecording || call.isManual ? 'completed' : 'in_progress',
-        at,
+        call.hasRecording || call.isManual ? at : undefined,
       );
+
       if (call.qualified) {
         stage.subSteps.forEach((step) => {
           step.status = 'completed';
@@ -267,13 +283,6 @@ export function applyCallState(pipeline: CompanyPipeline, call: CallStateInput |
           }
         });
         stage.status = 'completed';
-        pipeline.currentStageId = 'power_app';
-        pipeline.currentStageLabel = PIPELINE_STAGE_LABELS['power_app'];
-        pipeline.progressPercent = computeProgress('power_app');
-        const next = pipeline.stages.find((s) => s.id === 'power_app');
-        if (next) {
-          next.status = 'in_progress';
-        }
       }
       break;
   }

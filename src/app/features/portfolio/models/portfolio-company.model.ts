@@ -1,4 +1,5 @@
 import { PipelineStage, PipelineStageId } from './pipeline-stage.model';
+import { BackendPipelineStage } from './pipeline-case.model';
 
 export type ActivationStatus = 'pending' | 'activated' | 'at_risk' | 'cancelled';
 
@@ -18,6 +19,8 @@ export interface PortfolioCompanySummary {
   email?: string | null;
   representanteLegalNombre?: string | null;
   hasCall?: boolean;
+  pipelineCaseId?: string;
+  pipelineCaseStage?: BackendPipelineStage;
   powerAppSubmittedAt?: string;
   powerAppRadicado?: string | null;
 }

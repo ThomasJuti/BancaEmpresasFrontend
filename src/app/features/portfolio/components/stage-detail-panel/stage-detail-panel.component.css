@@ -99,6 +99,19 @@
   padding-bottom: 0;
 }
 
+.check-item[data-status='pending'] .check-body p,
+.check-item[data-status='pending'] .check-top-main strong {
+  color: var(--muted);
+}
+
+.check-item.locked .check-top {
+  cursor: default;
+}
+
+.check-item.locked .badge {
+  opacity: 0.85;
+}
+
 .check-icon {
   width: 28px;
   height: 28px;

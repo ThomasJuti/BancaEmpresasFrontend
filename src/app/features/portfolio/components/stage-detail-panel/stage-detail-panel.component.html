@@ -20,6 +20,7 @@
       class="check-item"
       [class.expanded]="isExpanded(step.id)"
       [class.expandable]="isExpandableSubStep(step.id)"
+      [class.locked]="isSubStepLocked(step.id)"
       [attr.data-status]="step.status"
     >
       <span class="check-icon">
@@ -73,6 +74,7 @@
             [phone]="pipeline.phone ?? null"
             [email]="pipeline.email ?? null"
             [representanteLegalNombre]="pipeline.representanteLegalNombre ?? null"
+            [pipelineCaseId]="pipeline.pipelineCaseId ?? null"
             [focusAction]="callsFocusAction"
             (callsChanged)="callsChanged.emit()"
           />
@@ -101,6 +103,12 @@
     </li>
     }
   </ul>
+
+  @if (showPowerAppGateMessage()) {
+  <div class="alert-banner info">
+    Complete el contacto telefónico calificado para habilitar la solicitud Power App.
+  </div>
+  }
 
   @if (visibleActions().length > 0) {
   <div class="actions">

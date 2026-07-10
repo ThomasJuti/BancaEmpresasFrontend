@@ -50,6 +50,7 @@ export class CompanyCallsPanelComponent implements OnInit, OnChanges, OnDestroy 
   @Input() phone: string | null = null;
   @Input() email: string | null = null;
   @Input() representanteLegalNombre: string | null = null;
+  @Input() pipelineCaseId: string | null = null;
   @Input() section: 'contact' | 'history' = 'contact';
   @Input() embedded = false;
   @Input() focusAction: 'auto' | 'manual' | null = null;
@@ -197,6 +198,7 @@ export class CompanyCallsPanelComponent implements OnInit, OnChanges, OnDestroy 
         customerName: this.representanteLegalNombre ?? this.companyName,
         customerEmail: this.email ?? undefined,
         variables: this.callContext(),
+        caseId: this.pipelineCaseId ?? undefined,
       })
       .subscribe({
         next: () => {

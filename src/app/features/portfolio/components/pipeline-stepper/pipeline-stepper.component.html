@@ -7,6 +7,7 @@
       [class.completed]="stageById(stageId)?.status === 'completed'"
       [class.active]="selectedStageId === stageId"
       [class.blocked]="stageById(stageId)?.status === 'blocked'"
+      [disabled]="stageById(stageId)?.status === 'blocked'"
       (click)="selectStage(stageId)"
     >
       <span class="node">

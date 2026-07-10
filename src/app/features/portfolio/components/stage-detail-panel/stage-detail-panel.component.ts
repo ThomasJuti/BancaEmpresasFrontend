@@ -3,6 +3,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { PipelineAction, PipelineStage } from '../../models/pipeline-stage.model';
 import { CompanyPipeline } from '../../models/portfolio-company.model';
 import { resolveStageActions } from '../../utils/pipeline-builder';
+import { canOpenPowerApp } from '../../utils/pipeline-access.util';
 import { stepStatusLabel } from '../../utils/follow-up.util';
 import { CompanyCallsPanelComponent } from '../company-calls-panel/company-calls-panel.component';
 
@@ -32,15 +33,38 @@ export class StageDetailPanelComponent {
     return resolveStageActions(this.stage, this.pipeline);
   }
 
+  showPowerAppGateMessage(): boolean {
+    return this.stage.id === 'power_app' && !canOpenPowerApp(this.pipeline);
+  }
+
   isCallsStage(): boolean {
     return this.stage.id === 'calls';
   }
 
   isExpandableSubStep(stepId: string): boolean {
-    if (this.isCallsStage()) {
-      return stepId === 'contact' || stepId === 'recording';
+    if (!this.isCallsStage()) {
+      return false;
+    }
+    if (stepId === 'contact') {
+      return true;
+    }
+    if (stepId === 'recording') {
+      return this.isRecordingAccessible();
     }
     return false;
+  }
+
+  isRecordingAccessible(): boolean {
+    const recording = this.stage.subSteps.find((s) => s.id === 'recording');
+    return recording?.status === 'in_progress' || recording?.status === 'completed';
+  }
+
+  isSubStepLocked(stepId: string): boolean {
+    if (!this.isCallsStage() || stepId === 'contact') {
+      return false;
+    }
+    const step = this.stage.subSteps.find((s) => s.id === stepId);
+    return step?.status === 'pending';
   }
 
   isExpanded(stepId: string): boolean {
@@ -71,7 +95,7 @@ export class StageDetailPanelComponent {
   }
 
   subStepDescription(stepId: string, defaultDescription: string): string {
-    if (stepId !== 'recording') {
+    if (stepId !== 'recording' || !this.isRecordingAccessible()) {
       return defaultDescription;
     }
     if (this.callsCount === 0) {

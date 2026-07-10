@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { forkJoin, of } from 'rxjs';
 import { PowerAppService } from '../../services/power-app.service';
 import { PowerAppSubmissionStore } from '../../services/power-app-submission.store';
 import {
@@ -11,7 +12,7 @@ import {
   ValidationIssue,
 } from '../../models/power-app-submit.model';
 import { extractApiErrorMessage, humanizeRuesError } from '../../utils/extract-api-error.util';
-import { buildPrefillFromCliente } from '../../utils/build-prefill.util';
+import { buildPrefillFromCliente, buildPrefillFromHandoff, applyPipelineFallback } from '../../utils/build-prefill.util';
 import {
   createPdfPreviewSource,
   downloadPdfFromSource,
@@ -23,6 +24,7 @@ import {
   hasBlockingValidationIssues,
   validatePowerAppClient,
 } from '../../utils/power-app-client-validator';
+import { normalizeIdentification } from '../../utils/colombian-id.util';
 import { PowerAppResultPanelComponent } from '../power-app-result-panel/power-app-result-panel.component';
 import { RuesComparisonPanelComponent } from '../rues-comparison-panel/rues-comparison-panel.component';
 import {
@@ -57,6 +59,8 @@ export class PowerAppFormModalComponent implements OnChanges, OnDestroy {
   @Input({ required: true }) companyNit!: string;
   @Input({ required: true }) companyName!: string;
   @Input({ required: true }) companyId!: string;
+  @Input() linkedCallId: string | null = null;
+  @Input() representanteLegalNombre: string | null = null;
   @Input() open = false;
   @Input() readOnly = false;
   @Input() persistedSubmittedAt?: string;
@@ -343,6 +347,8 @@ export class PowerAppFormModalComponent implements OnChanges, OnDestroy {
     const raw = this.form.getRawValue();
     const payload = {
       ...raw,
+      identificacionEmpresa: normalizeIdentification(raw.identificacionEmpresa),
+      numeroIdentificacionTarjetahabiente: normalizeIdentification(raw.numeroIdentificacionTarjetahabiente),
       tipoTarjetaNueva: 'LATAM BUSINESS',
       cupoTarjetaNueva: Number(raw.cupoTarjetaNueva),
       cupoDisponibleCec: raw.cupoDisponibleCec ? Number(raw.cupoDisponibleCec) : undefined,
@@ -497,15 +503,33 @@ export class PowerAppFormModalComponent implements OnChanges, OnDestroy {
     this.resetRuesState();
     this.checkRuesAvailability();
 
-    this.powerAppService.getClienteByNit(this.companyNit).subscribe({
-      next: (cliente) => {
-        const { value, prefilledFields } = buildPrefillFromCliente(cliente, this.companyNit, this.companyName);
+    const handoff$ = this.linkedCallId
+      ? this.powerAppService.getHandoffPrefill(this.linkedCallId)
+      : of(null);
+
+    forkJoin({
+      cliente: this.powerAppService.getClienteByNit(this.companyNit),
+      handoff: handoff$,
+    }).subscribe({
+      next: ({ cliente, handoff }) => {
+        let { value, prefilledFields } = buildPrefillFromCliente(cliente, this.companyNit, this.companyName);
+
+        if (handoff) {
+          ({ value, prefilledFields } = buildPrefillFromHandoff(handoff, value, prefilledFields));
+        }
+
+        ({ value, prefilledFields } = applyPipelineFallback(
+          value,
+          prefilledFields,
+          this.representanteLegalNombre,
+        ));
+
         this.prefilledFields.set(prefilledFields);
         this.form.patchValue({
           ...value,
           tipoTarjetaNueva: 'LATAM BUSINESS',
         });
-        if (!cliente) {
+        if (!cliente && !handoff) {
           this.loadError.set(
             'No se encontró la empresa en clientes finales. Puede diligenciar el formulario manualmente.',
           );
@@ -513,7 +537,12 @@ export class PowerAppFormModalComponent implements OnChanges, OnDestroy {
         this.loading.set(false);
       },
       error: () => {
-        const { value, prefilledFields } = buildPrefillFromCliente(null, this.companyNit, this.companyName);
+        const base = buildPrefillFromCliente(null, this.companyNit, this.companyName);
+        const { value, prefilledFields } = applyPipelineFallback(
+          base.value,
+          base.prefilledFields,
+          this.representanteLegalNombre,
+        );
         this.prefilledFields.set(prefilledFields);
         this.form.patchValue(value);
         this.loadError.set('No se pudo cargar la base de clientes. Puede diligenciar manualmente.');

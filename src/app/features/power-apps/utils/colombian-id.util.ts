@@ -6,22 +6,24 @@ export function normalizeIdentification(value: string): string {
   return value.replace(/[.\-\s]/g, '').trim();
 }
 
-/** Alinea NIT del formulario con el que devuelve RUES (9 dígitos sin verificación). */
-export function normalizeEmpresaNit(value: string): string {
+/** Alinea NIT del formulario con el que devuelve RUES (9 dígitos sin verificación). Solo para cruce interno. */
+export function nitBaseForRuesMatch(value: string): string {
   const digits = value.replace(/\D/g, '');
   if (!digits) return '';
   if (digits.length === 10 && (digits[0] === '8' || digits[0] === '9')) {
     return digits.slice(0, 9);
   }
-  return digits;
+  return digits.length >= 10 ? digits.slice(0, 9) : digits;
+}
+
+/** @deprecated Usar nitBaseForRuesMatch; no usar para submit ni prefill. */
+export function normalizeEmpresaNit(value: string): string {
+  return nitBaseForRuesMatch(value);
 }
 
 export function looksLikeEmpresaNit(value: string): boolean {
   const id = normalizeIdentification(value);
-  if (!/^\d{9,11}$/.test(id)) return false;
-
-  const base = id.length >= 10 ? id.slice(0, 9) : id;
-  return /^[89]\d{8}$/.test(base) || id.length === 9;
+  return /^\d{9,10}$/.test(id);
 }
 
 export function inferTarjetahabienteDocType(
@@ -41,7 +43,7 @@ export function inferTarjetahabienteDocType(
 }
 
 function isNitPattern(id: string): boolean {
-  return id.length >= 9 && /^[89]\d{8,10}$/.test(id);
+  return id.length >= 9 && /^\d{9,10}$/.test(id);
 }
 
 export function looksLikeTarjetahabienteDocument(
