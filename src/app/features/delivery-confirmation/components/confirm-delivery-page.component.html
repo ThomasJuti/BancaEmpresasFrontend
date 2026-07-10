@@ -1,0 +1,89 @@
+<div class="page">
+  <div class="card">
+    <div class="brand">
+      <span class="brand-name">Banca Empresas</span>
+      <span class="brand-sub">Tarjeta de Crédito LATAM Business</span>
+    </div>
+
+    @switch (state()) {
+      @case ('loading') {
+        <p class="state">Cargando…</p>
+      }
+
+      @case ('invalid') {
+        <div class="result error-block">
+          <div class="icon error">✕</div>
+          <h1>Enlace no válido</h1>
+          <p>Este enlace de confirmación es inválido o ya venció.</p>
+        </div>
+      }
+
+      @case ('already') {
+        <div class="result">
+          <div class="icon ok">✓</div>
+          <h1>Entrega ya confirmada</h1>
+          <p>Esta tarjeta ya fue marcada como entregada. No hay nada más que hacer.</p>
+        </div>
+      }
+
+      @case ('confirmed') {
+        <div class="result">
+          <div class="icon ok">✓</div>
+          <h1>¡Entrega confirmada!</h1>
+          <p>Gracias. Registramos la entrega de la tarjeta a su titular.</p>
+        </div>
+      }
+
+      @case ('retry') {
+        <div class="result">
+          <div class="icon warn">!</div>
+          <h1>Reporte registrado</h1>
+          <p>Anotamos que la tarjeta aún no fue entregada. Le reenviaremos un recordatorio pronto.</p>
+        </div>
+      }
+
+      @default {
+        @if (view(); as v) {
+          <h1>Confirmación de entrega</h1>
+          <p class="lead">Confirme si la tarjeta empresarial fue entregada a su titular.</p>
+
+          <div class="detail">
+            <div class="row">
+              <span class="label">Tarjetahabiente</span>
+              <span class="value">{{ v.cardHolderName }}</span>
+            </div>
+            <div class="row">
+              <span class="label">Tarjeta terminada en</span>
+              <span class="value mono">•••• {{ v.cardLastFour }}</span>
+            </div>
+          </div>
+
+          @if (state() === 'error') {
+            <p class="inline-error">{{ errorMessage() }}</p>
+          }
+
+          <div class="actions">
+            <button
+              type="button"
+              class="btn-primary"
+              [disabled]="state() === 'submitting'"
+              (click)="confirm('delivered_to_holder')"
+            >
+              {{ state() === 'submitting' ? 'Confirmando…' : 'Sí, fue entregada' }}
+            </button>
+            <button
+              type="button"
+              class="btn-ghost"
+              [disabled]="state() === 'submitting'"
+              (click)="confirm('not_arrived')"
+            >
+              Aún no ha llegado
+            </button>
+          </div>
+
+          <p class="footnote">Este enlace es personal y de un solo uso.</p>
+        }
+      }
+    }
+  </div>
+</div>
