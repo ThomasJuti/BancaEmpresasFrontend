@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, inject } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { AuthService } from '../../../features/auth/services/auth.service';
 
 interface NavItem {
   label: string;
@@ -16,6 +17,9 @@ interface NavItem {
   styleUrls: ['./sidebar.component.css'],
 })
 export class SidebarComponent {
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+
   readonly items: NavItem[] = [
     { label: 'Llamadas', icon: 'phone', route: '/llamadas' },
     { label: 'Portafolio', icon: 'portfolio', route: '/portafolio' },
@@ -23,4 +27,9 @@ export class SidebarComponent {
     { label: 'Seguimiento', icon: 'star' },
     { label: 'Reportes', icon: 'chart' },
   ];
+
+  logout(): void {
+    this.auth.logout();
+    void this.router.navigate(['/login']);
+  }
 }
