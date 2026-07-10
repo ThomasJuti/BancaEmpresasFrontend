@@ -30,6 +30,20 @@
           </div>
           <div class="muted">{{ call.phoneNumber }}</div>
           <div class="muted small">{{ call.createdAt | date: 'short' }}</div>
+          @if (identityVerified(call) !== null || clientInterested(call) !== null) {
+            <div class="tags">
+              @if (identityVerified(call) !== null) {
+                <span class="tag" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
+                  {{ identityVerified(call) ? '✓ Identidad' : '✗ Identidad' }}
+                </span>
+              }
+              @if (clientInterested(call) !== null) {
+                <span class="tag" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
+                  {{ clientInterested(call) ? '✓ Interesado' : '✗ No interesado' }}
+                </span>
+              }
+            </div>
+          }
         </button>
       }
     </aside>
@@ -62,10 +76,56 @@
           </div>
         </div>
 
-        <!-- Variables de salida -->
+        <!-- Resultado de la llamada (variables de salida de Fonema) -->
+        @if (identityVerified(call) !== null || clientInterested(call) !== null || noInterestReason(call)) {
+          <div class="card">
+            <h3>Resultado de la llamada</h3>
+            <div class="result">
+              @if (identityVerified(call) !== null) {
+                <div class="result-item">
+                  <span class="result-label">Identidad verificada</span>
+                  <span class="pill" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
+                    {{ identityVerified(call) ? 'Sí' : 'No' }}
+                  </span>
+                </div>
+              }
+              @if (clientInterested(call) !== null) {
+                <div class="result-item">
+                  <span class="result-label">Cliente interesado</span>
+                  <span class="pill" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
+                    {{ clientInterested(call) ? 'Sí' : 'No' }}
+                  </span>
+                </div>
+              }
+              @if (noInterestReason(call); as reason) {
+                <div class="result-item wide">
+                  <span class="result-label">Motivo de no interés</span>
+                  <span class="result-value">{{ reason }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Datos extraídos de la llamada (resto de variables de salida) -->
+        @if (outputEntries(call).length > 0) {
+          <div class="card">
+            <h3>Datos extraídos de la llamada</h3>
+            <div class="vars">
+              @for (entry of outputEntries(call); track entry.key) {
+                <div class="var">
+                  <span class="var-key">{{ entry.key }}</span>
+                  <span class="var-val">{{ entry.value }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Análisis estructurado -->
         @if (structuredEntries(call.structuredData).length > 0) {
           <div class="card">
-            <h3>Variables de salida</h3>
+            <h3>Análisis</h3>
             <div class="vars">
               @for (entry of structuredEntries(call.structuredData); track entry.key) {
                 <div class="var">

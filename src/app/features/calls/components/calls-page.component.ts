@@ -72,4 +72,63 @@ export class CallsPageComponent implements OnInit {
   isSuccess(value?: boolean | string): boolean {
     return value === true || value === 'true' || value === 'Verdadero';
   }
+
+  // --- Resultado de la llamada (variables de salida de Fonema) ---
+
+  /** Claves de titular que se muestran aparte y no se repiten en "Datos extraídos". */
+  private readonly HEADLINE_KEYS = ['identidad_verificada', 'cliente_interesado', 'motivo_no_interes'];
+
+  /** ¿Se verificó la identidad del representante? null si el agente no lo reportó. */
+  identityVerified(call: Call): boolean | null {
+    return this.truthiness(this.readVar(call, ['identidad_verificada', 'identidadVerificada']));
+  }
+
+  /** ¿El cliente quedó interesado? null si el agente no lo reportó. */
+  clientInterested(call: Call): boolean | null {
+    return this.truthiness(this.readVar(call, ['cliente_interesado', 'clienteInteresado']));
+  }
+
+  /** Motivo declarado de no interés, si lo hay. */
+  noInterestReason(call: Call): string | null {
+    return this.readVar(call, ['motivo_no_interes', 'motivo_no_interés', 'motivoNoInteres']) ?? null;
+  }
+
+  /** Variables de salida extraídas por el agente, sin las de titular. */
+  outputEntries(call: Call): { key: string; value: string }[] {
+    if (!call.outputVariables) {
+      return [];
+    }
+    return Object.entries(call.outputVariables)
+      .filter(([key]) => !this.HEADLINE_KEYS.includes(key.toLowerCase()))
+      .map(([key, value]) => ({ key, value: String(value) }));
+  }
+
+  /** Busca una clave (case-insensitive) entre outputVariables y structuredData. */
+  private readVar(call: Call, keys: string[]): string | undefined {
+    const wanted = keys.map((k) => k.toLowerCase());
+    const sources: Record<string, unknown>[] = [call.outputVariables ?? {}, call.structuredData ?? {}];
+    for (const source of sources) {
+      for (const [key, value] of Object.entries(source)) {
+        if (wanted.includes(key.toLowerCase()) && value != null && String(value).trim() !== '') {
+          return String(value);
+        }
+      }
+    }
+    return undefined;
+  }
+
+  /** Interpreta un string booleano de Fonema (es/en). null si es ambiguo/ausente. */
+  private truthiness(value: string | undefined): boolean | null {
+    if (value == null) {
+      return null;
+    }
+    const v = value.trim().toLowerCase();
+    if (['true', 'si', 'sí', 'verdadero', 'yes', '1'].includes(v)) {
+      return true;
+    }
+    if (['false', 'no', 'falso', '0'].includes(v)) {
+      return false;
+    }
+    return null;
+  }
 }

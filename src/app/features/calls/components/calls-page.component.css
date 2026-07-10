@@ -101,6 +101,14 @@
   margin-top: 2px;
 }
 
+/* Tags de resultado en la lista */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
 /* Detalle */
 .detail {
   background: var(--surface);
@@ -179,6 +187,58 @@
   font-size: 15px;
   color: var(--body);
   line-height: 1.55;
+}
+
+/* Resultado de la llamada */
+.result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.result-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--blue-tint);
+  border-radius: var(--radius-btn);
+  padding: 10px 14px;
+}
+.result-item.wide {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.result-label {
+  font-size: 13px;
+  color: var(--body);
+}
+.result-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--heading);
+}
+.tag,
+.pill {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--divider);
+  color: var(--body);
+}
+.tag {
+  font-size: 11px;
+  padding: 3px 8px;
+}
+.tag.ok,
+.pill.ok {
+  background: #e7f4e9;
+  color: var(--exito);
+}
+.tag.no,
+.pill.no {
+  background: #fbe9e9;
+  color: var(--peligro);
 }
 
 .vars {
