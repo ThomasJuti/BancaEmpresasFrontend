@@ -7,43 +7,10 @@
     <span class="badge" [attr.data-status]="stage.status">{{ statusLabel(stage.status) }}</span>
   </div>
 
-  @if (stage.id === 'follow_up' && followUpSchedule) {
-  <div
-    class="alert-banner"
-    [class.warning]="followUpSchedule.isCancellationRisk"
-    [class.danger]="followUpSchedule.phase === 'month_3' && followUpSchedule.isCancellationRisk"
-    [class.info]="!followUpSchedule.isCancellationRisk"
-  >
-    <strong>{{ followUpSchedule.label }}</strong> — {{ followUpSchedule.cadence }}.
-    Próxima acción: {{ followUpSchedule.nextAction }}
-    @if (followUpSchedule.nextActionDate) {
-    <span class="date">({{ followUpSchedule.nextActionDate | date: 'mediumDate' }})</span>
-    }
-    <div class="days">Días desde envío: {{ followUpSchedule.daysSinceShipment }}</div>
-  </div>
-
-  <div class="timeline">
-    <div class="timeline-item" [class.active]="followUpSchedule.phase === 'month_1'">
-      <span class="dot"></span>
-      <div>
-        <strong>Mes 1</strong>
-        <p>Correo + llamada de agente si no hay activación</p>
-      </div>
-    </div>
-    <div class="timeline-item" [class.active]="followUpSchedule.phase === 'month_2'">
-      <span class="dot"></span>
-      <div>
-        <strong>Mes 2</strong>
-        <p>Recordatorio cada 15 días</p>
-      </div>
-    </div>
-    <div class="timeline-item" [class.active]="followUpSchedule.phase === 'month_3'">
-      <span class="dot"></span>
-      <div>
-        <strong>Mes 3</strong>
-        <p>Recordatorio semanal; cancelación al día 90</p>
-      </div>
-    </div>
+  @if (stage.id === 'follow_up') {
+  <div class="alert-banner info">
+    El monitoreo de uso de la tarjeta (recordatorios mes 1/2/3) vive en la vista lateral
+    <strong>Seguimiento</strong>. Aquí solo se cierra la entrega.
   </div>
   }
 

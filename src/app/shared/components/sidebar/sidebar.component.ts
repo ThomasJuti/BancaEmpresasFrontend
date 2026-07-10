@@ -24,7 +24,7 @@ export class SidebarComponent {
     { label: 'Llamadas', icon: 'phone', route: '/llamadas' },
     { label: 'Portafolio', icon: 'portfolio', route: '/portafolio' },
     { label: 'Entregas', icon: 'box' },
-    { label: 'Seguimiento', icon: 'star' },
+    { label: 'Seguimiento', icon: 'star', route: '/seguimiento' },
     { label: 'Reportes', icon: 'chart' },
   ];
 

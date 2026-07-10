@@ -34,7 +34,6 @@
   <app-stage-detail-panel
     [stage]="stage"
     [pipeline]="p"
-    [followUpSchedule]="stage.id === 'follow_up' ? followUpSchedule() : null"
     [actionLoading]="actionLoading()"
     (actionRequested)="onActionRequested($event)"
   />

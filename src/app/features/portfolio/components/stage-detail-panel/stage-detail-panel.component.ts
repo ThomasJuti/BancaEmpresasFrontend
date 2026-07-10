@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { PipelineAction, PipelineStage } from '../../models/pipeline-stage.model';
-import { CompanyPipeline, FollowUpSchedule } from '../../models/portfolio-company.model';
+import { CompanyPipeline } from '../../models/portfolio-company.model';
 import { resolveStageActions } from '../../utils/pipeline-builder';
 import { stepStatusLabel } from '../../utils/follow-up.util';
 
@@ -15,7 +15,6 @@ import { stepStatusLabel } from '../../utils/follow-up.util';
 export class StageDetailPanelComponent {
   @Input({ required: true }) stage!: PipelineStage;
   @Input({ required: true }) pipeline!: CompanyPipeline;
-  @Input() followUpSchedule: FollowUpSchedule | null = null;
   @Input() actionLoading = false;
   @Output() actionRequested = new EventEmitter<PipelineAction>();
 

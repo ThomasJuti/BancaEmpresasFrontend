@@ -32,6 +32,11 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./features/portfolio/portfolio.routes').then((m) => m.PORTFOLIO_ROUTES),
       },
+      {
+        path: 'seguimiento',
+        loadChildren: () =>
+          import('./features/follow-up/follow-up.routes').then((m) => m.FOLLOW_UP_ROUTES),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

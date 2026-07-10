@@ -39,7 +39,8 @@ export const PIPELINE_STAGE_LABELS: Record<PipelineStageId, string> = {
   power_app: 'Power App',
   operations: 'Operaciones y envío',
   card_delivery: 'Tarjeta y acuse',
-  follow_up: 'Seguimiento activación',
+  // Check único de cierre: el monitoreo de uso vive en la vista lateral "Seguimiento".
+  follow_up: 'Cierre de entrega',
 };
 
 export const PIPELINE_STAGE_ORDER: PipelineStageId[] = [

@@ -1,17 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { FollowUpService } from '../../../../core/services/follow-up.service';
 import { PowerAppFormModalComponent } from '../../../power-apps/components/power-app-form-modal/power-app-form-modal.component';
 import { PowerAppSubmitResponse } from '../../../power-apps/models/power-app-submit.model';
 import { PowerAppSubmissionStore } from '../../../power-apps/services/power-app-submission.store';
 import { PipelineAction, PipelineStageId } from '../../models/pipeline-stage.model';
 import { CompanyPipeline } from '../../models/portfolio-company.model';
 import { PortfolioRepository, PORTFOLIO_REPOSITORY } from '../../models/portfolio.repository';
-import {
-  activationStatusLabel,
-  computeFollowUpSchedule,
-  stepStatusLabel,
-} from '../../utils/follow-up.util';
+import { activationStatusLabel, stepStatusLabel } from '../../utils/follow-up.util';
 import { computeProgress } from '../../utils/pipeline-builder';
 import { PipelineStepperComponent } from '../pipeline-stepper/pipeline-stepper.component';
 import { StageDetailPanelComponent } from '../stage-detail-panel/stage-detail-panel.component';
@@ -32,6 +29,7 @@ import { StageDetailPanelComponent } from '../stage-detail-panel/stage-detail-pa
 export class CompanyPipelinePageComponent implements OnInit {
   private readonly repository = inject<PortfolioRepository>(PORTFOLIO_REPOSITORY);
   private readonly submissionStore = inject(PowerAppSubmissionStore);
+  private readonly followUpService = inject(FollowUpService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -52,12 +50,6 @@ export class CompanyPipelinePageComponent implements OnInit {
     const p = this.pipeline();
     if (!p) return null;
     return p.stages.find((s) => s.id === this.selectedStageId()) ?? null;
-  });
-
-  readonly followUpSchedule = computed(() => {
-    const p = this.pipeline();
-    if (!p) return null;
-    return computeFollowUpSchedule(p.cardShippedAt, p.activatedAt, p.activationStatus);
   });
 
   statusLabel = activationStatusLabel;
@@ -201,6 +193,11 @@ export class CompanyPipelinePageComponent implements OnInit {
     const p = this.pipeline();
     if (!p) return;
 
+    if (action.id === 'finalize_delivery') {
+      this.finalizeDelivery(p);
+      return;
+    }
+
     this.actionLoading.set(true);
     this.repository.executeAction(p.id, this.selectedStageId(), action.id).subscribe({
       next: (result) => {
@@ -216,6 +213,47 @@ export class CompanyPipelinePageComponent implements OnInit {
         this.actionLoading.set(false);
       },
     });
+  }
+
+  /**
+   * Check único del punto 5: llama al backend (idempotente). La primera vez el
+   * backend dispara la llamada de felicitación y crea el caso de seguimiento;
+   * luego se refleja el check en el pipeline local.
+   */
+  private finalizeDelivery(pipeline: CompanyPipeline): void {
+    this.actionLoading.set(true);
+    this.followUpService
+      .finalizeDelivery({
+        clienteId: pipeline.clienteId ?? pipeline.nit,
+        nombre: pipeline.name,
+        telefono: pipeline.phone ?? undefined,
+        correo: pipeline.email ?? undefined,
+      })
+      .subscribe({
+        next: (result) => {
+          // Refleja el check localmente (el estado durable vive en el backend).
+          this.repository.executeAction(pipeline.id, 'follow_up', 'finalize_delivery').subscribe({
+            next: (actionResult) => {
+              if (actionResult.pipeline) {
+                this.pipeline.set(actionResult.pipeline);
+              }
+            },
+          });
+
+          if (result.yaExistia) {
+            this.showFeedback('La entrega ya estaba finalizada; el seguimiento continúa en la vista Seguimiento.');
+          } else if (result.llamadaFelicitacionIniciada) {
+            this.showFeedback('Entrega finalizada. Llamada de felicitación iniciada; el cliente entró a Seguimiento.');
+          } else {
+            this.showFeedback('Entrega finalizada. El cliente entró a Seguimiento (la llamada de felicitación no se pudo iniciar).');
+          }
+          this.actionLoading.set(false);
+        },
+        error: () => {
+          this.showFeedback('No se pudo finalizar la entrega. Intente de nuevo.');
+          this.actionLoading.set(false);
+        },
+      });
   }
 
   private markPipelineSubmitted(pipeline: CompanyPipeline, result: PowerAppSubmitResponse): void {

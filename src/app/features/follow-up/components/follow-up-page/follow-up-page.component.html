@@ -1,0 +1,117 @@
+<header class="page-head">
+  <div>
+    <h1 class="page-title">Seguimiento de uso</h1>
+    <p class="page-subtitle">
+      Tarjetas entregadas: la TC se inactiva a los 90 días sin uso. El agente llama
+      automáticamente al mes sin uso (mes 2: cada 15 días; mes 3: semanal).
+    </p>
+  </div>
+  <button type="button" class="btn-secondary" (click)="refresh()" [disabled]="loading()">
+    Actualizar
+  </button>
+</header>
+
+@if (loading()) {
+<p class="state">Cargando seguimiento…</p>
+} @else if (error()) {
+<p class="state error">{{ error() }}</p>
+} @else {
+
+<div class="kpis">
+  <div class="card kpi">
+    <span class="kpi-value">{{ kpis().total }}</span>
+    <span class="kpi-label">En seguimiento</span>
+  </div>
+  <div class="card kpi" [class.danger]="kpis().enRiesgo > 0">
+    <span class="kpi-value">{{ kpis().enRiesgo }}</span>
+    <span class="kpi-label">En riesgo de inactivación</span>
+  </div>
+  <div class="card kpi">
+    <span class="kpi-value">{{ kpis().recordatorios }}</span>
+    <span class="kpi-label">Llamadas de recordatorio</span>
+  </div>
+</div>
+
+@if (cases().length === 0) {
+<div class="card empty">
+  <p>Aún no hay clientes en seguimiento.</p>
+  <p class="muted">
+    Marca <strong>“Entrega finalizada”</strong> en el punto 5 del
+    <a routerLink="/portafolio">portafolio</a> para felicitar al cliente e iniciar el
+    monitoreo de uso de su tarjeta.
+  </p>
+</div>
+} @else {
+
+<div class="case-list">
+  @for (caso of cases(); track caso.id) {
+  <article class="card case">
+    <div class="case-head">
+      <div>
+        <h3>{{ caso.clienteNombre ?? 'Empresa sin nombre' }}</h3>
+        <p class="muted">NIT {{ caso.clienteId }} · Tel: {{ caso.telefono ?? '—' }}</p>
+      </div>
+      <span class="badge" [attr.data-status]="faseBadge(caso)">{{ faseLabel(caso.fase) }}</span>
+    </div>
+
+    <div class="usage-meter">
+      <div class="usage-top">
+        <span><strong>{{ caso.diasSinUso }}</strong> días sin uso</span>
+        <span class="muted">inactivación en {{ caso.diasParaInactivacion }} días</span>
+      </div>
+      <div class="bar">
+        <div
+          class="fill"
+          [style.width.%]="inactivationPercent(caso)"
+          [attr.data-status]="faseBadge(caso)"
+        ></div>
+        <span class="tick" style="left: 33.3%" title="Día 30 — primera llamada"></span>
+        <span class="tick" style="left: 66.6%" title="Día 60 — cada 15 días"></span>
+        <span class="tick" style="left: 83.3%" title="Día 75 — riesgo"></span>
+      </div>
+    </div>
+
+    <div class="case-meta">
+      <div>
+        <span class="meta-label">Entrega finalizada</span>
+        <span>{{ caso.deliveredAt | date: 'short' }}</span>
+      </div>
+      <div>
+        <span class="meta-label">Último uso</span>
+        <span>{{ caso.lastUsedAt | date: 'short' }}</span>
+      </div>
+      <div>
+        <span class="meta-label">Felicitación</span>
+        <span>
+          @if (caso.congratulatedAt) { Llamada realizada ✓ } @else { No realizada }
+        </span>
+      </div>
+      <div>
+        <span class="meta-label">Recordatorios</span>
+        <span>{{ caso.reminderCount }} llamada(s)</span>
+      </div>
+      <div>
+        <span class="meta-label">Próxima llamada</span>
+        <span>{{ caso.proximaLlamadaEstimada ? (caso.proximaLlamadaEstimada | date: 'short') : '—' }}</span>
+      </div>
+    </div>
+
+    <div class="case-actions">
+      <button
+        type="button"
+        class="btn-primary"
+        (click)="registerUsage(caso)"
+        [disabled]="usageLoadingId() === caso.clienteId"
+      >
+        {{ usageLoadingId() === caso.clienteId ? 'Registrando…' : 'Registrar uso (demo)' }}
+      </button>
+      <a class="btn-secondary" routerLink="/llamadas">Ver llamadas</a>
+    </div>
+  </article>
+  }
+</div>
+} }
+
+@if (feedback()) {
+<div class="feedback-toast">{{ feedback() }}</div>
+}

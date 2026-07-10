@@ -36,15 +36,3 @@ export interface ActionResult {
   message: string;
   pipeline?: CompanyPipeline;
 }
-
-export type FollowUpPhase = 'not_shipped' | 'month_1' | 'month_2' | 'month_3' | 'activated' | 'cancelled';
-
-export interface FollowUpSchedule {
-  phase: FollowUpPhase;
-  label: string;
-  cadence: string;
-  nextAction: string;
-  nextActionDate?: string;
-  daysSinceShipment: number;
-  isCancellationRisk: boolean;
-}

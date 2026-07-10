@@ -35,9 +35,7 @@ export function stageActions(stageId: PipelineStageId): PipelineAction[] {
       { id: 'upload_receipt', label: 'Subir acuse (mock)', kind: 'secondary' },
     ],
     follow_up: [
-      { id: 'send_email', label: 'Enviar correo', kind: 'primary' },
-      { id: 'start_agent_call', label: 'Iniciar llamada agente', kind: 'secondary', requiresConfirmation: true, confirmationMessage: '¿Programar llamada de seguimiento con el agente?' },
-      { id: 'view_next_reminder', label: 'Ver próximo recordatorio', kind: 'secondary' },
+      { id: 'finalize_delivery', label: 'Marcar entrega finalizada', kind: 'primary', requiresConfirmation: true, confirmationMessage: '¿Confirmar que la entrega de la tarjeta al cliente quedó finalizada? La primera vez se llamará al cliente para felicitarlo y arrancará el seguimiento de uso.' },
     ],
   };
   return actions[stageId];
@@ -67,9 +65,7 @@ export function defaultSubSteps(stageId: PipelineStageId, stageStatus: StepStatu
       { id: 'receipt', title: 'Acuse de recibido firmado', description: 'Acuse con firma, nombre, fecha y cédula.', status: 'pending', assignee: 'Destinatario' },
     ],
     follow_up: [
-      { id: 'month1_rule', title: 'Regla mes 1', description: 'Si no activa en 30 días: correo + llamada agente.', status: 'pending', assignee: 'Sistema / Agente' },
-      { id: 'month2_rule', title: 'Regla mes 2', description: 'Recordatorio cada 15 días sin activación.', status: 'pending', assignee: 'Sistema' },
-      { id: 'month3_rule', title: 'Regla mes 3', description: 'Recordatorio semanal; cancelación al día 90.', status: 'pending', assignee: 'Sistema' },
+      { id: 'delivery_finalized', title: 'Entrega de la TC finalizada', description: 'Check único de cierre: al marcarlo se felicita al cliente por su nueva tarjeta y arranca el monitoreo de uso en la vista Seguimiento.', status: 'pending', assignee: 'Gerente de relaciones' },
     ],
   };
 
@@ -186,12 +182,14 @@ export function applyPipelineAction(
       stage.status = 'completed';
       advanceStage(pipeline, 'card_delivery');
       return 'Acuse de recibido cargado (mock).';
-    case 'send_email':
-      return 'Correo de recordatorio de activación enviado (mock).';
-    case 'start_agent_call':
-      return 'Llamada de agente programada para seguimiento (mock).';
-    case 'view_next_reminder':
-      return 'Próximo recordatorio visible en el panel de seguimiento.';
+    case 'finalize_delivery':
+      // El POST real lo hace la página (FollowUpService); aquí solo se refleja el check.
+      stage.subSteps.forEach((s) => {
+        s.status = 'completed';
+        s.completedAt = new Date().toISOString();
+      });
+      stage.status = 'completed';
+      return 'Entrega de la TC finalizada.';
     case 'view_call':
       return 'Redirigir a detalle de llamada cuando exista integración.';
     default:
