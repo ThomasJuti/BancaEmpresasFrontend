@@ -14,3 +14,12 @@ export interface ClientesFinalesResponse {
   total: number;
   clientes: ClienteFinalDto[];
 }
+
+export interface ClientesFinalesPaginatedResponse extends ClientesFinalesResponse {
+  page: number;
+  pageSize: number;
+}
+
+export interface ClienteFinalByIdResponse {
+  cliente: ClienteFinalDto;
+}

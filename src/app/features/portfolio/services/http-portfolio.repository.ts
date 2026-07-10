@@ -1,16 +1,23 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { map, Observable, of, throwError } from 'rxjs';
+import { catchError, map, Observable, of, throwError } from 'rxjs';
 import { FILE_MATCHING_API } from '../../../core/config/api.config';
-import { ClienteFinalDto, ClientesFinalesResponse } from '../models/cliente-final.model';
+import {
+  ClienteFinalByIdResponse,
+  ClienteFinalDto,
+  ClientesFinalesPaginatedResponse,
+} from '../models/cliente-final.model';
 import { PIPELINE_STAGE_LABELS, PipelineStageId } from '../models/pipeline-stage.model';
 import {
   ActionResult,
   CompanyPipeline,
-  PortfolioCompanySummary,
   PortfolioKpis,
 } from '../models/portfolio-company.model';
-import { PortfolioRepository } from '../models/portfolio.repository';
+import {
+  PortfolioPageQuery,
+  PortfolioPageResult,
+  PortfolioRepository,
+} from '../models/portfolio.repository';
 import { applyPipelineAction, buildStages, computeProgress } from '../utils/pipeline-builder';
 
 // Todo lead recién cruzado entra al pipeline en la etapa de llamadas de venta.
@@ -33,21 +40,45 @@ export class HttpPortfolioRepository implements PortfolioRepository {
   // entre navegaciones sin volver a pedir la lista al backend.
   private readonly cache = new Map<string, CompanyPipeline>();
 
-  getCompanies(): Observable<PortfolioCompanySummary[]> {
-    return this.http.get<ClientesFinalesResponse>(this.endpoint).pipe(
+  getCompanies(query: PortfolioPageQuery): Observable<PortfolioPageResult> {
+    let params = new HttpParams()
+      .set('page', String(query.page))
+      .set('limit', String(query.pageSize));
+
+    const search = query.search?.trim();
+    if (search) {
+      params = params.set('q', search);
+    }
+
+    return this.http.get<ClientesFinalesPaginatedResponse>(this.endpoint, { params }).pipe(
       map((response) => {
-        this.cache.clear();
-        return response.clientes.map((cliente) => {
+        const isPaginated = response.page !== undefined && response.pageSize !== undefined;
+        const clientes = isPaginated
+          ? response.clientes
+          : response.clientes.slice(
+              (query.page - 1) * query.pageSize,
+              query.page * query.pageSize,
+            );
+
+        const companies = clientes.map((cliente) => {
           const pipeline = this.toPipeline(cliente);
           this.cache.set(pipeline.id, pipeline);
           return this.toSummary(pipeline);
         });
+
+        return {
+          companies,
+          total: response.total,
+          page: response.page ?? query.page,
+          pageSize: response.pageSize ?? query.pageSize,
+        };
       }),
     );
   }
 
   getKpis(): Observable<PortfolioKpis> {
-    return this.http.get<ClientesFinalesResponse>(this.endpoint).pipe(
+    const params = new HttpParams().set('page', '1').set('limit', '1');
+    return this.http.get<ClientesFinalesPaginatedResponse>(this.endpoint, { params }).pipe(
       map((response) => ({
         sold: response.total,
         inFollowUp: 0,
@@ -62,7 +93,19 @@ export class HttpPortfolioRepository implements PortfolioRepository {
     if (cached) {
       return of(structuredClone(cached));
     }
-    return this.http.get<ClientesFinalesResponse>(this.endpoint).pipe(
+
+    return this.http.get<ClienteFinalByIdResponse>(`${this.endpoint}/${companyId}`).pipe(
+      map((response) => {
+        const pipeline = this.toPipeline(response.cliente);
+        this.cache.set(pipeline.id, pipeline);
+        return structuredClone(pipeline);
+      }),
+      catchError(() => this.fetchClienteFromList(companyId)),
+    );
+  }
+
+  private fetchClienteFromList(companyId: string): Observable<CompanyPipeline> {
+    return this.http.get<ClientesFinalesPaginatedResponse>(this.endpoint).pipe(
       map((response) => {
         const cliente = response.clientes.find((c) => c.clienteId === companyId);
         if (!cliente) {
@@ -101,7 +144,7 @@ export class HttpPortfolioRepository implements PortfolioRepository {
     };
   }
 
-  private toSummary(pipeline: CompanyPipeline): PortfolioCompanySummary {
+  private toSummary(pipeline: CompanyPipeline) {
     const { stages, ...summary } = pipeline;
     void stages;
     return summary;

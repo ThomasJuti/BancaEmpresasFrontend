@@ -68,7 +68,7 @@
   </div>
 </div>
 
-@if (filteredCompanies().length === 0) {
+@if (companies().length === 0) {
 <p class="state">No hay empresas que coincidan con la búsqueda.</p>
 } @else {
 <div class="data-table-card">
@@ -84,7 +84,7 @@
     <div>Activación</div>
     <div>Acción</div>
   </div>
-  @for (company of filteredCompanies(); track company.id) {
+  @for (company of companies(); track company.id) {
   <div
     class="data-table-row"
     style="grid-template-columns: 2fr 1.2fr 1.4fr 0.8fr 1fr 1fr 1fr"
@@ -108,6 +108,44 @@
     </div>
   </div>
   }
+
+  <footer class="pagination-bar">
+  <p class="pagination-info">
+    Mostrando <strong>{{ rangeStart() }}–{{ rangeEnd() }}</strong> de <strong>{{ total() }}</strong> empresas
+  </p>
+  <nav class="pagination-controls" aria-label="Paginación del portafolio">
+    <button
+      type="button"
+      class="pagination-btn"
+      [disabled]="!canGoPrev() || loading()"
+      (click)="goToPrevPage()"
+      aria-label="Página anterior"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+      <span>Anterior</span>
+    </button>
+    <span class="pagination-status" aria-live="polite">
+      <span class="pagination-label">Página</span>
+      <span class="pagination-current">{{ page() }}</span>
+      <span class="pagination-sep">de</span>
+      <span class="pagination-total">{{ totalPages() }}</span>
+    </span>
+    <button
+      type="button"
+      class="pagination-btn"
+      [disabled]="!canGoNext() || loading()"
+      (click)="goToNextPage()"
+      aria-label="Página siguiente"
+    >
+      <span>Siguiente</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    </button>
+  </nav>
+</footer>
 </div>
 }
 }
