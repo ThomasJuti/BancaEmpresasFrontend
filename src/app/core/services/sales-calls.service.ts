@@ -26,6 +26,7 @@ export interface BatchLead {
   phoneNumber: string;
   customerName?: string;
   customerEmail?: string;
+  variables?: Record<string, string>;
 }
 
 export interface CreateBatchRequest {
