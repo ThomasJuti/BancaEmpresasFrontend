@@ -19,14 +19,8 @@ export const routes: Routes = [
     component: MainLayoutComponent,
     canActivate: [authGuard],
     children: [
-      { path: '', redirectTo: 'portafolio', pathMatch: 'full' },
-      {
-        path: 'llamadas',
-        loadComponent: () =>
-          import('./features/calls/components/calls-page.component').then(
-            (m) => m.CallsPageComponent,
-          ),
-      },
+      { path: '', redirectTo: 'portafolio/pendientes', pathMatch: 'full' },
+      { path: 'llamadas', redirectTo: 'portafolio/pendientes', pathMatch: 'full' },
       {
         path: 'portafolio',
         loadChildren: () =>

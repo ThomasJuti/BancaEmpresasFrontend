@@ -3,10 +3,13 @@ import { Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../features/auth/services/auth.service';
 
+type NavIcon = 'phone' | 'phone-list' | 'portfolio' | 'box' | 'star' | 'chart';
+
 interface NavItem {
   label: string;
-  icon: 'phone' | 'portfolio' | 'box' | 'star' | 'chart';
-  route?: string;
+  icon: NavIcon;
+  route: string;
+  exact?: boolean;
 }
 
 @Component({
@@ -21,11 +24,11 @@ export class SidebarComponent {
   private readonly router = inject(Router);
 
   readonly items: NavItem[] = [
-    { label: 'Llamadas', icon: 'phone', route: '/llamadas' },
-    { label: 'Portafolio', icon: 'portfolio', route: '/portafolio' },
-    { label: 'Entregas', icon: 'box' },
+    { label: 'Por llamar', icon: 'phone-list', route: '/portafolio/pendientes', exact: true },
+    { label: 'En gestión', icon: 'portfolio', route: '/portafolio/pipeline', exact: true },
+    { label: 'Entregas', icon: 'box', route: '' },
     { label: 'Seguimiento', icon: 'star', route: '/seguimiento' },
-    { label: 'Reportes', icon: 'chart' },
+    { label: 'Reportes', icon: 'chart', route: '' },
   ];
 
   async logout(): Promise<void> {

@@ -17,10 +17,7 @@ import {
 
 export function stageActions(stageId: PipelineStageId): PipelineAction[] {
   const actions: Record<PipelineStageId, PipelineAction[]> = {
-    calls: [
-      { id: 'view_call', label: 'Ver detalle llamada', kind: 'secondary' },
-      { id: 'retry_contact', label: 'Reintentar contacto', kind: 'primary', requiresConfirmation: true, confirmationMessage: '¿Registrar un nuevo intento de contacto telefónico?' },
-    ],
+    calls: [],
     power_app: [
       { id: 'fill_power_app', label: 'Diligenciar solicitud', kind: 'primary' },
       { id: 'view_power_app_result', label: 'Ver solicitud enviada', kind: 'secondary' },
@@ -74,6 +71,12 @@ export function defaultSubSteps(stageId: PipelineStageId, stageStatus: StepStatu
     return steps.map((s) => ({ ...s, status: 'completed' as StepStatus, completedAt: '2026-06-01T10:00:00.000Z' }));
   }
   if (stageStatus === 'in_progress') {
+    if (stageId === 'calls') {
+      return steps.map((s, i) => ({
+        ...s,
+        status: (i === 0 ? 'in_progress' : 'pending') as StepStatus,
+      }));
+    }
     return steps.map((s, i) => ({
       ...s,
       status: (i === 0 ? 'completed' : i === 1 ? 'in_progress' : 'pending') as StepStatus,
@@ -104,7 +107,6 @@ export function buildStages(
       status,
       subSteps: defaultSubSteps(id, status),
       actions: stageActions(id),
-      ...(id === 'calls' ? { linkedCallId: 'call-mock-001' } : {}),
     };
 
     return { ...base, ...overrides[id] };
@@ -191,7 +193,7 @@ export function applyPipelineAction(
       stage.status = 'completed';
       return 'Entrega de la TC finalizada.';
     case 'view_call':
-      return 'Redirigir a detalle de llamada cuando exista integración.';
+      return 'Abrir historial de contacto telefónico.';
     default:
       return 'Acción ejecutada correctamente (mock).';
   }
@@ -202,7 +204,9 @@ export interface CallStateInput {
   status: 'queued' | 'initiated' | 'in_progress' | 'completed' | 'failed';
   hasRecording: boolean;
   qualified: boolean;
+  isManual?: boolean;
   at?: string;
+  callId?: string;
 }
 
 function setSubStep(stage: PipelineStage, id: string, status: StepStatus, at?: string): void {
@@ -228,10 +232,15 @@ export function applyCallState(pipeline: CompanyPipeline, call: CallStateInput |
   }
   const at = call.at;
 
+  if (call.callId) {
+    stage.linkedCallId = call.callId;
+  }
+
   switch (call.status) {
     case 'queued':
     case 'initiated':
       setSubStep(stage, 'contact', 'in_progress');
+      setSubStep(stage, 'recording', 'in_progress');
       break;
     case 'in_progress':
       setSubStep(stage, 'contact', 'completed', at);
@@ -243,9 +252,20 @@ export function applyCallState(pipeline: CompanyPipeline, call: CallStateInput |
     case 'completed':
       setSubStep(stage, 'contact', 'completed', at);
       setSubStep(stage, 'benefits', 'completed', at);
-      setSubStep(stage, 'acceptance', call.qualified ? 'completed' : 'pending', at);
-      setSubStep(stage, 'recording', call.hasRecording ? 'completed' : 'pending', at);
+      setSubStep(stage, 'acceptance', 'completed', at);
+      setSubStep(
+        stage,
+        'recording',
+        call.hasRecording || call.isManual ? 'completed' : 'in_progress',
+        at,
+      );
       if (call.qualified) {
+        stage.subSteps.forEach((step) => {
+          step.status = 'completed';
+          if (at) {
+            step.completedAt = at;
+          }
+        });
         stage.status = 'completed';
         pipeline.currentStageId = 'power_app';
         pipeline.currentStageLabel = PIPELINE_STAGE_LABELS['power_app'];

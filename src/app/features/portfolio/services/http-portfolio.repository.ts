@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { catchError, forkJoin, map, Observable, of, throwError } from 'rxjs';
 import { FILE_MATCHING_API, PIPELINE_API } from '../../../core/config/api.config';
-import { CallRecord, SalesCallsService } from '../../../core/services/sales-calls.service';
+import { CallDetail, SalesCallsService } from '../../../core/services/sales-calls.service';
 import { PipelineCaseDto, PipelineCaseResponse } from '../models/pipeline-case.model';
 import { isPowerAppStageCompleted, mapBackendStageToFrontend } from '../utils/pipeline-case.mapper';
 import {
@@ -28,9 +28,17 @@ import {
   CallStateInput,
   computeProgress,
 } from '../utils/pipeline-builder';
+import {
+  clientInterested,
+  identityVerified,
+  isManualCall,
+} from '../../../shared/utils/call-display.util';
+import { matchesNit } from '../../../shared/utils/nit.util';
+import { matchesPortfolioSection, matchesStageFilter } from '../utils/portfolio-section.util';
 
 // Todo lead recién cruzado entra al pipeline en la etapa de llamadas de venta.
 const INITIAL_STAGE: PipelineStageId = 'calls';
+const CLIENT_FILTER_FETCH_LIMIT = 500;
 
 /**
  * Implementación de PortfolioRepository contra el backend real.
@@ -50,9 +58,14 @@ export class HttpPortfolioRepository implements PortfolioRepository {
   private readonly cache = new Map<string, CompanyPipeline>();
 
   getCompanies(query: PortfolioPageQuery): Observable<PortfolioPageResult> {
-    let params = new HttpParams()
-      .set('page', String(query.page))
-      .set('limit', String(query.pageSize));
+    const hasClientFilters = !!query.section || !!query.stage;
+    let params = new HttpParams();
+
+    if (hasClientFilters) {
+      params = params.set('page', '1').set('limit', String(CLIENT_FILTER_FETCH_LIMIT));
+    } else {
+      params = params.set('page', String(query.page)).set('limit', String(query.pageSize));
+    }
 
     const search = query.search?.trim();
     if (search) {
@@ -64,27 +77,36 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       calls: this.listCallsSafe(),
     }).pipe(
       map(({ response, calls }) => {
-        const isPaginated = response.page !== undefined && response.pageSize !== undefined;
-        const clientes = isPaginated
-          ? response.clientes
-          : response.clientes.slice(
-              (query.page - 1) * query.pageSize,
-              query.page * query.pageSize,
-            );
-
-        const companies = clientes.map((cliente) => {
+        const summaries = response.clientes.map((cliente) => {
           const pipelineCase = cliente.pipelineCase ?? undefined;
+          const callState = this.callStateFor(cliente.clienteId, calls);
           const pipeline = this.toPipeline(cliente, pipelineCase);
-          applyCallState(pipeline, this.callStateFor(cliente.clienteId, calls));
+          applyCallState(pipeline, callState);
           this.cache.set(pipeline.id, pipeline);
-          return this.toSummary(pipeline);
+          return this.toSummary(pipeline, !!callState);
         });
 
+        if (!hasClientFilters) {
+          return {
+            companies: summaries,
+            total: response.total,
+            page: response.page ?? query.page,
+            pageSize: response.pageSize ?? query.pageSize,
+          };
+        }
+
+        const filtered = summaries.filter(
+          (company) =>
+            (!query.section || matchesPortfolioSection(company, query.section)) &&
+            matchesStageFilter(company, query.stage),
+        );
+        const start = (query.page - 1) * query.pageSize;
+
         return {
-          companies,
-          total: response.total,
-          page: response.page ?? query.page,
-          pageSize: response.pageSize ?? query.pageSize,
+          companies: filtered.slice(start, start + query.pageSize),
+          total: filtered.length,
+          page: query.page,
+          pageSize: query.pageSize,
         };
       }),
     );
@@ -113,6 +135,16 @@ export class HttpPortfolioRepository implements PortfolioRepository {
         this.cache.set(pipeline.id, pipeline);
         return structuredClone(pipeline);
       }),
+    );
+  }
+
+  getCallsForCompany(nit: string): Observable<CallDetail[]> {
+    return this.listCallsSafe().pipe(
+      map((calls) =>
+        calls
+          .filter((c) => matchesNit(c.variables?.['nit'], nit))
+          .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '')),
+      ),
     );
   }
 
@@ -152,13 +184,13 @@ export class HttpPortfolioRepository implements PortfolioRepository {
   }
 
   /** Lista de llamadas tolerante a fallos: si el endpoint falla, no rompe el portafolio. */
-  private listCallsSafe(): Observable<CallRecord[]> {
-    return this.salesCalls.listCalls().pipe(catchError(() => of([] as CallRecord[])));
+  private listCallsSafe(): Observable<CallDetail[]> {
+    return this.salesCalls.listCalls().pipe(catchError(() => of([] as CallDetail[])));
   }
 
   /** Deriva el estado del stage `calls` desde la llamada más reciente del cliente (match por NIT). */
-  private callStateFor(clienteId: string, calls: CallRecord[]): CallStateInput | undefined {
-    const matches = calls.filter((c) => c.variables?.['nit'] === clienteId);
+  private callStateFor(clienteId: string, calls: CallDetail[]): CallStateInput | undefined {
+    const matches = calls.filter((c) => matchesNit(c.variables?.['nit'], clienteId));
     if (matches.length === 0) {
       return undefined;
     }
@@ -167,14 +199,19 @@ export class HttpPortfolioRepository implements PortfolioRepository {
     );
     return {
       status: latest.status,
-      hasRecording: !!latest.recordingUrl,
-      qualified: this.isQualified(latest.successEvaluation),
+      hasRecording: !!latest.recordingUrl || (!isManualCall(latest) && latest.status === 'completed'),
+      qualified: this.isQualified(latest),
+      isManual: isManualCall(latest),
       at: latest.updatedAt,
+      callId: latest.id,
     };
   }
 
-  private isQualified(value?: boolean | string): boolean {
-    return value === true || value === 'true' || value === 'Verdadero';
+  private isQualified(call: CallDetail): boolean {
+    if (call.successEvaluation === true || call.successEvaluation === 'true' || call.successEvaluation === 'Verdadero') {
+      return true;
+    }
+    return identityVerified(call) === true && clientInterested(call) === true;
   }
 
   executeAction(companyId: string, stageId: string, actionId: string): Observable<ActionResult> {
@@ -212,9 +249,9 @@ export class HttpPortfolioRepository implements PortfolioRepository {
     };
   }
 
-  private toSummary(pipeline: CompanyPipeline) {
+  private toSummary(pipeline: CompanyPipeline, hasCall = false) {
     const { stages, ...summary } = pipeline;
     void stages;
-    return summary;
+    return { ...summary, hasCall };
   }
 }

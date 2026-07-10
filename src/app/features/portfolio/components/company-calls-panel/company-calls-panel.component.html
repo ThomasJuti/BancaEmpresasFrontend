@@ -1,0 +1,506 @@
+<div
+  class="calls-panel"
+  [class.embedded]="embedded"
+  [class.call-history-panel]="section === 'history' && embedded"
+  [class.embedded-history]="section === 'history' && embedded"
+  [class.card]="!embedded"
+>
+  @if (section === 'contact') {
+    <div class="panel-actions">
+      <button
+        type="button"
+        class="btn-primary"
+        [disabled]="!hasPhone() || acting()"
+        (click)="openAutoForm()"
+      >
+        Contacto automático
+      </button>
+      @if (!autoOnly) {
+      <button type="button" class="btn-secondary" (click)="openManualForm()">
+        Registro del asesor
+      </button>
+      }
+    </div>
+
+    @if (actionSuccess()) {
+    <p class="banner success">{{ actionSuccess() }}</p>
+    }
+    @if (actionError()) {
+    <p class="banner error">{{ actionError() }}</p>
+    }
+
+    @if (contactMode() === 'idle') {
+    <p class="contact-hint muted">
+      Inicia un contacto automático o registra el resultado si ya llamaste al representante.
+    </p>
+    } @else if (contactMode() === 'auto') {
+    <div class="form-card">
+      <h4>Iniciar contacto automático</h4>
+      <p class="muted">Se contactará al representante con el protocolo de verificación de venta.</p>
+      <label class="field">
+        <span>Teléfono (formato internacional)</span>
+        <input
+          type="tel"
+          [ngModel]="editablePhone()"
+          (ngModelChange)="editablePhone.set($event)"
+          placeholder="+573001234567"
+        />
+      </label>
+      @if (!editablePhoneValid()) {
+      <p class="field-error">Ingresa un número válido (ej. +573001234567).</p>
+      }
+      <div class="form-actions">
+        <button type="button" class="btn-ghost" (click)="backToToolbar()">Cancelar</button>
+        <button
+          type="button"
+          class="btn-primary"
+          [disabled]="!editablePhoneValid() || acting()"
+          (click)="confirmAutoCall()"
+        >
+          {{ acting() ? 'Encolando…' : 'Confirmar contacto' }}
+        </button>
+      </div>
+    </div>
+    } @else if (contactMode() === 'manual') {
+    <div class="form-card">
+      <h4>Registrar contacto del asesor</h4>
+      <p class="muted">Para cuando el asesor llamó directamente y diligencia las comprobaciones.</p>
+      <div class="form-grid">
+        <label class="field">
+          <span>Contacto</span>
+          <input
+            type="text"
+            [ngModel]="manualContacto()"
+            (ngModelChange)="manualContacto.set($event)"
+            placeholder="Nombre del representante"
+          />
+        </label>
+        <label class="field">
+          <span>Teléfono (opcional)</span>
+          <input
+            type="tel"
+            [ngModel]="editablePhone()"
+            (ngModelChange)="editablePhone.set($event)"
+            placeholder="+573001234567"
+          />
+        </label>
+      </div>
+      @if (!manualPhoneValid()) {
+      <p class="field-error">Formato de teléfono inválido.</p>
+      }
+      <div class="checks-card">
+        <h5>Comprobaciones del protocolo</h5>
+        <label class="check-row">
+          <input type="checkbox" [ngModel]="manualIdentidad()" (ngModelChange)="manualIdentidad.set($event)" />
+          <span>Identidad verificada (nombre, empresa y NIT confirmados)</span>
+        </label>
+        <label class="check-row">
+          <input type="checkbox" [ngModel]="manualInteresado()" (ngModelChange)="manualInteresado.set($event)" />
+          <span>Cliente interesado en la tarjeta LATAM Business</span>
+        </label>
+        @if (!manualInteresado()) {
+        <label class="field full">
+          <span>Motivo de no interés</span>
+          <input
+            type="text"
+            [ngModel]="manualMotivo()"
+            (ngModelChange)="manualMotivo.set($event)"
+            placeholder="Ej. No requiere cupo adicional"
+          />
+        </label>
+        }
+      </div>
+      <label class="field full">
+        <span>Notas (opcional)</span>
+        <textarea
+          rows="3"
+          [ngModel]="manualSummary()"
+          (ngModelChange)="manualSummary.set($event)"
+          placeholder="Resumen breve de la conversación"
+        ></textarea>
+      </label>
+      <div class="form-actions">
+        <button type="button" class="btn-ghost" (click)="backToToolbar()">Cancelar</button>
+        <button
+          type="button"
+          class="btn-primary"
+          [disabled]="!manualCanSubmit() || acting()"
+          (click)="submitManualCall()"
+        >
+          {{ acting() ? 'Guardando…' : 'Guardar registro' }}
+        </button>
+      </div>
+    </div>
+    }
+  } @else {
+    @if (!embeddedHistory()) {
+    <div class="history-toolbar panel-actions">
+      <button type="button" class="btn-secondary" (click)="load()" [disabled]="loading()">
+        ↻ Actualizar
+      </button>
+    </div>
+    }
+
+    @if (loading()) {
+    <p class="state">Cargando historial…</p>
+    } @else if (error()) {
+    <p class="state error">{{ error() }}</p>
+    } @else if (calls().length === 0) {
+    <div class="empty-history">
+      <p>Sin contactos aún — usa Contacto inicial arriba.</p>
+      <button type="button" class="link-action" (click)="goToContact.emit()">
+        Ir a Contacto inicial
+      </button>
+    </div>
+    } @else if (embeddedHistory()) {
+    @if (selected(); as call) {
+    <div class="call-dashboard">
+      @if (showCallPicker()) {
+      <div class="call-picker" role="tablist" aria-label="Contactos de la empresa">
+        @for (item of calls(); track item.id) {
+        <button
+          type="button"
+          class="picker-chip"
+          role="tab"
+          [class.active]="selected()?.id === item.id"
+          [attr.aria-selected]="selected()?.id === item.id"
+          (click)="select(item)"
+        >
+          <span>{{ originLabel(item) }}</span>
+          <span class="badge sm" [attr.data-status]="item.status">{{ statusLabel(item.status) }}</span>
+          <span class="muted">{{ item.createdAt | date: 'short' }}</span>
+        </button>
+        }
+      </div>
+      }
+
+      <div class="call-dashboard-head">
+        <div class="call-meta-chips">
+          <span class="origin-tag" [class.manual]="isManual(call)" [class.auto]="!isManual(call)">
+            {{ originLabel(call) }}
+          </span>
+          <span class="badge sm" [attr.data-status]="call.status">{{ statusLabel(call.status) }}</span>
+          <span class="meta-chip muted">{{ call.createdAt | date: 'short' }}</span>
+          @if (call.phoneNumber) {
+          <span class="meta-chip muted">{{ call.phoneNumber }}</span>
+          }
+        </div>
+        <button type="button" class="btn-refresh" (click)="load()" [disabled]="loading()" title="Actualizar">
+          ↻
+        </button>
+      </div>
+
+      @if (isPendingCall(call)) {
+      <div class="pending-card">
+        <p>{{ pendingCallMessage(call) }}</p>
+      </div>
+      } @else {
+      <div class="call-dashboard-grid">
+        <div class="call-dashboard-primary">
+          @if (hasCallMetrics(call)) {
+          <div class="metric-row">
+            <div class="metric-cell">
+              <span class="metric-label">Duración</span>
+              <span class="metric-value">{{ call.durationSeconds ?? '—' }}<small>seg</small></span>
+            </div>
+            <div class="metric-cell">
+              <span class="metric-label">Resultado</span>
+              <span
+                class="metric-value"
+                [class.ok]="isSuccess(call.successEvaluation)"
+                [class.no]="call.successEvaluation !== undefined && !isSuccess(call.successEvaluation)"
+              >
+                {{ call.successEvaluation === undefined ? '—' : (isSuccess(call.successEvaluation) ? 'Éxito' : 'No exitosa') }}
+              </span>
+            </div>
+            <div class="metric-cell">
+              <span class="metric-label">Motivo de fin</span>
+              <span class="metric-value compact">{{ endedLabel(call.endedReason) }}</span>
+            </div>
+          </div>
+          }
+
+          @if (identityVerified(call) !== null || clientInterested(call) !== null || noInterestReason(call)) {
+          <section class="dash-panel">
+            <h6>Protocolo</h6>
+            <div class="protocol-grid">
+              @if (identityVerified(call) !== null) {
+              <div class="protocol-cell">
+                <span>Identidad</span>
+                <span class="pill" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
+                  {{ identityVerified(call) ? 'Sí' : 'No' }}
+                </span>
+              </div>
+              }
+              @if (clientInterested(call) !== null) {
+              <div class="protocol-cell">
+                <span>Interés</span>
+                <span class="pill" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
+                  {{ clientInterested(call) ? 'Sí' : 'No' }}
+                </span>
+              </div>
+              }
+              @if (noInterestReason(call); as reason) {
+              <div class="protocol-cell wide">
+                <span>Motivo de no interés</span>
+                <span class="protocol-value">{{ reason }}</span>
+              </div>
+              }
+            </div>
+          </section>
+          }
+
+          @if (outputEntries(call).length > 0 || analysisEntries(call).length > 0) {
+          <section class="dash-panel">
+            <h6>Datos</h6>
+            <div class="field-grid">
+              @for (entry of outputEntries(call); track entry.label) {
+              <div class="field-cell">
+                <span class="field-label">{{ entry.label }}</span>
+                <span class="field-value">{{ entry.value }}</span>
+              </div>
+              }
+              @for (entry of analysisEntries(call); track entry.label) {
+              <div class="field-cell">
+                <span class="field-label">{{ entry.label }}</span>
+                <span class="field-value">{{ entry.value }}</span>
+              </div>
+              }
+            </div>
+          </section>
+          }
+
+          @if (call.summary) {
+          <section class="dash-panel">
+            <h6>Resumen</h6>
+            <p class="summary-text">{{ call.summary }}</p>
+          </section>
+          }
+
+          @if (isManual(call)) {
+          <section class="dash-panel note-panel">
+            <p class="muted">Registro manual del asesor — sin grabación ni transcripción automática.</p>
+          </section>
+          }
+        </div>
+
+        <div class="call-dashboard-media">
+          @if (hasRecordingAvailable(call)) {
+          <section class="dash-panel">
+            <h6>Grabación</h6>
+            <audio class="player" controls [src]="recordingUrl(call)"></audio>
+          </section>
+          } @else if (!isManual(call) && !isPendingCall(call)) {
+          <section class="dash-panel">
+            <h6>Grabación</h6>
+            <p class="muted">Sin grabación disponible.</p>
+          </section>
+          }
+
+          @if (!isManual(call) && call.transcript && call.transcript.length > 0) {
+          <section class="dash-panel transcript-panel">
+            <h6>Transcripción</h6>
+            <div class="chat">
+              @for (msg of call.transcript; track $index) {
+                @if (msg.role !== 'system') {
+                <div
+                  class="msg"
+                  [class.assistant]="msg.role === 'bot' || msg.role === 'agent'"
+                  [class.user]="msg.role === 'user'"
+                >
+                  <span class="who">{{ transcriptRole(msg.role) }}</span>
+                  <p>{{ msg.message }}</p>
+                </div>
+                }
+              }
+            </div>
+          </section>
+          }
+        </div>
+      </div>
+      }
+    </div>
+    }
+    } @else {
+    <div class="layout">
+      <aside class="list">
+        @for (call of calls(); track call.id) {
+        <button
+          type="button"
+          class="call-item"
+          [class.active]="selected()?.id === call.id"
+          (click)="select(call)"
+        >
+          <div class="row">
+            <strong>{{ contactTitle(call, representanteLegalNombre) }}</strong>
+            <span class="badge" [attr.data-status]="call.status">{{ statusLabel(call.status) }}</span>
+          </div>
+          <div class="row-meta">
+            <span class="origin-tag" [class.manual]="isManual(call)" [class.auto]="!isManual(call)">
+              {{ originLabel(call) }}
+            </span>
+            <span class="muted">{{ call.phoneNumber }}</span>
+          </div>
+          <div class="muted small">{{ call.createdAt | date: 'short' }}</div>
+          @if (identityVerified(call) !== null || clientInterested(call) !== null) {
+          <div class="tags">
+            @if (identityVerified(call) !== null) {
+            <span class="tag" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
+              {{ identityVerified(call) ? '✓ Identidad' : '✗ Identidad' }}
+            </span>
+            }
+            @if (clientInterested(call) !== null) {
+            <span class="tag" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
+              {{ clientInterested(call) ? '✓ Interesado' : '✗ No interesado' }}
+            </span>
+            }
+          </div>
+          }
+        </button>
+        }
+      </aside>
+
+      <section class="detail">
+        @if (selected(); as call) {
+        <div class="detail-head">
+          <div>
+            <h4>{{ contactTitle(call, representanteLegalNombre) }}</h4>
+            <p class="muted">{{ contactSubtitle(call) }}</p>
+          </div>
+          <div class="head-tags">
+            <span class="origin-tag lg" [class.manual]="isManual(call)" [class.auto]="!isManual(call)">
+              {{ originLabel(call) }}
+            </span>
+            <span class="badge lg" [attr.data-status]="call.status">{{ statusLabel(call.status) }}</span>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="kpi">
+            <span class="kpi-value">{{ call.durationSeconds ?? '—' }}</span>
+            <span class="kpi-caption">Duración (seg)</span>
+          </div>
+          <div class="kpi">
+            <span
+              class="kpi-value"
+              [class.ok]="isSuccess(call.successEvaluation)"
+              [class.no]="call.successEvaluation !== undefined && !isSuccess(call.successEvaluation)"
+            >
+              {{ call.successEvaluation === undefined ? '—' : (isSuccess(call.successEvaluation) ? 'Éxito' : 'No exitosa') }}
+            </span>
+            <span class="kpi-caption">Resultado</span>
+          </div>
+          <div class="kpi">
+            <span class="kpi-value small">{{ endedLabel(call.endedReason) }}</span>
+            <span class="kpi-caption">Motivo de fin</span>
+          </div>
+        </div>
+
+        @if (identityVerified(call) !== null || clientInterested(call) !== null || noInterestReason(call)) {
+        <div class="subcard">
+          <h5>Resultado del contacto</h5>
+          <div class="result">
+            @if (identityVerified(call) !== null) {
+            <div class="result-item">
+              <span>Identidad verificada</span>
+              <span class="pill" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
+                {{ identityVerified(call) ? 'Sí' : 'No' }}
+              </span>
+            </div>
+            }
+            @if (clientInterested(call) !== null) {
+            <div class="result-item">
+              <span>Cliente interesado</span>
+              <span class="pill" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
+                {{ clientInterested(call) ? 'Sí' : 'No' }}
+              </span>
+            </div>
+            }
+            @if (noInterestReason(call); as reason) {
+            <div class="result-item wide">
+              <span>Motivo de no interés</span>
+              <span class="result-value">{{ reason }}</span>
+            </div>
+            }
+          </div>
+        </div>
+        }
+
+        @if (outputEntries(call).length > 0) {
+        <div class="subcard">
+          <h5>Datos recopilados</h5>
+          <div class="vars">
+            @for (entry of outputEntries(call); track entry.label) {
+            <div class="var">
+              <span class="var-key">{{ entry.label }}</span>
+              <span class="var-val">{{ entry.value }}</span>
+            </div>
+            }
+          </div>
+        </div>
+        }
+
+        @if (analysisEntries(call).length > 0) {
+        <div class="subcard">
+          <h5>Análisis</h5>
+          <div class="vars">
+            @for (entry of analysisEntries(call); track entry.label) {
+            <div class="var">
+              <span class="var-key">{{ entry.label }}</span>
+              <span class="var-val">{{ entry.value }}</span>
+            </div>
+            }
+          </div>
+        </div>
+        }
+
+        @if (call.summary) {
+        <div class="subcard">
+          <h5>Resumen</h5>
+          <p>{{ call.summary }}</p>
+        </div>
+        }
+
+        @if (!isManual(call)) {
+        <div class="subcard">
+          <h5>Grabación</h5>
+          @if (hasRecordingAvailable(call)) {
+          <audio class="player" controls [src]="recordingUrl(call)"></audio>
+          } @else {
+          <p class="muted">Sin grabación disponible.</p>
+          }
+        </div>
+
+        @if (call.transcript && call.transcript.length > 0) {
+        <div class="subcard">
+          <h5>Transcripción</h5>
+          <div class="chat">
+            @for (msg of call.transcript; track $index) {
+              @if (msg.role !== 'system') {
+              <div
+                class="msg"
+                [class.assistant]="msg.role === 'bot' || msg.role === 'agent'"
+                [class.user]="msg.role === 'user'"
+              >
+                <span class="who">{{ transcriptRole(msg.role) }}</span>
+                <p>{{ msg.message }}</p>
+              </div>
+              }
+            }
+          </div>
+        </div>
+        }
+        } @else {
+        <div class="subcard">
+          <h5>Contacto del asesor</h5>
+          <p class="muted">Registro manual sin grabación ni transcripción automática.</p>
+        </div>
+        }
+        } @else {
+        <p class="empty-detail">Selecciona un contacto del historial.</p>
+        }
+      </section>
+    </div>
+    }
+  }
+</div>

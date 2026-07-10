@@ -28,7 +28,7 @@ export class AuthCallbackComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
 
   ngOnInit(): void {
-    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/portafolio';
+    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/portafolio/pendientes';
     const target = this.auth.isAuthenticated() ? returnUrl : '/login';
     void this.router.navigateByUrl(target, { replaceUrl: true });
   }

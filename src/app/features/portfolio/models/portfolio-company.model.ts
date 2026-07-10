@@ -17,6 +17,7 @@ export interface PortfolioCompanySummary {
   phone?: string | null;
   email?: string | null;
   representanteLegalNombre?: string | null;
+  hasCall?: boolean;
   powerAppSubmittedAt?: string;
   powerAppRadicado?: string | null;
 }

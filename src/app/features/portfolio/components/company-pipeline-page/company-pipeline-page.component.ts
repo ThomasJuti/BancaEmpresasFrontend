@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FollowUpService } from '../../../../core/services/follow-up.service';
 import { PowerAppFormModalComponent } from '../../../power-apps/components/power-app-form-modal/power-app-form-modal.component';
 import { PowerAppSubmitResponse } from '../../../power-apps/models/power-app-submit.model';
@@ -31,7 +31,6 @@ export class CompanyPipelinePageComponent implements OnInit {
   private readonly submissionStore = inject(PowerAppSubmissionStore);
   private readonly followUpService = inject(FollowUpService);
   private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
 
   readonly pipeline = signal<CompanyPipeline | null>(null);
   readonly selectedStageId = signal<PipelineStageId>('calls');
@@ -45,6 +44,11 @@ export class CompanyPipelinePageComponent implements OnInit {
   readonly showPowerAppModal = signal(false);
   readonly powerAppReadOnly = signal(false);
   readonly lastRadicado = signal<string | null>(null);
+  readonly callsFocusAction = signal<'auto' | 'manual' | null>(null);
+  readonly callsSelectedId = signal<string | null>(null);
+  readonly expandedSubStepId = signal<string | null>(null);
+  readonly callsRefreshKey = signal(0);
+  readonly callsCount = signal(0);
 
   readonly selectedStage = computed(() => {
     const p = this.pipeline();
@@ -56,6 +60,20 @@ export class CompanyPipelinePageComponent implements OnInit {
   stepLabel = stepStatusLabel;
 
   ngOnInit(): void {
+    this.route.queryParamMap.subscribe((query) => {
+      const etapa = query.get('etapa') as PipelineStageId | null;
+      const accion = query.get('accion');
+      if (etapa && ['calls', 'power_app', 'operations', 'card_delivery', 'follow_up'].includes(etapa)) {
+        this.selectedStageId.set(etapa);
+      }
+      if (accion === 'auto' || accion === 'manual') {
+        this.callsFocusAction.set(accion);
+        this.expandedSubStepId.set('contact');
+      } else if (query.get('historial') === '1') {
+        this.expandedSubStepId.set('recording');
+      }
+    });
+
     this.route.paramMap.subscribe((params) => {
       const companyId = params.get('companyId');
       if (companyId) {
@@ -71,8 +89,11 @@ export class CompanyPipelinePageComponent implements OnInit {
       next: (pipeline) => {
         const restored = this.applyStoredSubmission(pipeline);
         this.pipeline.set(restored);
-        this.selectedStageId.set(restored.currentStageId);
+        if (!this.route.snapshot.queryParamMap.get('etapa')) {
+          this.selectedStageId.set(restored.currentStageId);
+        }
         this.loading.set(false);
+        this.preloadCallsHistory(restored);
       },
       error: () => {
         this.error.set('No se encontró la empresa solicitada.');
@@ -83,6 +104,15 @@ export class CompanyPipelinePageComponent implements OnInit {
 
   selectStage(stageId: PipelineStageId): void {
     this.selectedStageId.set(stageId);
+    this.expandedSubStepId.set(null);
+    this.callsFocusAction.set(null);
+  }
+
+  onExpandedSubStepChange(subStepId: string | null): void {
+    this.expandedSubStepId.set(subStepId);
+    if (subStepId !== 'contact') {
+      this.callsFocusAction.set(null);
+    }
   }
 
   onActionRequested(action: PipelineAction): void {
@@ -100,8 +130,9 @@ export class CompanyPipelinePageComponent implements OnInit {
       return;
     }
 
-    if (action.id === 'view_call') {
-      void this.router.navigate(['/llamadas'], { queryParams: { callId: this.selectedStage()?.linkedCallId } });
+    if (action.id === 'start_agent_call') {
+      this.expandedSubStepId.set('contact');
+      this.callsFocusAction.set('auto');
       return;
     }
 
@@ -320,6 +351,65 @@ export class CompanyPipelinePageComponent implements OnInit {
   private showFeedback(message: string): void {
     this.feedback.set(message);
     setTimeout(() => this.feedback.set(null), 3500);
+  }
+
+  onCallsChanged(): void {
+    const p = this.pipeline();
+    if (!p) return;
+    this.expandedSubStepId.set('recording');
+    this.callsRefreshKey.update((key) => key + 1);
+    this.repository.invalidateCompanyCache(p.id);
+    const nit = p.clienteId ?? p.nit;
+    this.repository.getCallsForCompany(nit).subscribe({
+      next: (calls) => this.callsCount.set(calls.length),
+    });
+    this.repository.getCompanyPipeline(p.id).subscribe({
+      next: (refreshed) => {
+        const updated = this.applyStoredSubmission(refreshed);
+        this.pipeline.set(updated);
+        const linkedId = updated.stages.find((s) => s.id === 'calls')?.linkedCallId ?? null;
+        if (linkedId) {
+          this.callsSelectedId.set(linkedId);
+        }
+      },
+    });
+  }
+
+  private preloadCallsHistory(pipeline: CompanyPipeline): void {
+    const nit = pipeline.clienteId ?? pipeline.nit;
+    this.repository.getCallsForCompany(nit).subscribe({
+      next: (calls) => {
+        this.callsCount.set(calls.length);
+        this.applyCallsExpansion(pipeline, calls.length);
+      },
+    });
+  }
+
+  private applyCallsExpansion(pipeline: CompanyPipeline, historyCount: number): void {
+    const query = this.route.snapshot.queryParamMap;
+    const accion = query.get('accion');
+    const historial = query.get('historial') === '1';
+    const etapa = query.get('etapa');
+    const callsStage = pipeline.stages.find((s) => s.id === 'calls');
+    const linkedCallId = callsStage?.linkedCallId;
+    const hasHistory = historyCount > 0 || !!linkedCallId;
+
+    if (accion === 'auto' || accion === 'manual') {
+      this.expandedSubStepId.set('contact');
+      return;
+    }
+
+    if (historial || hasHistory) {
+      this.expandedSubStepId.set('recording');
+      if (linkedCallId) {
+        this.callsSelectedId.set(linkedCallId);
+      }
+      return;
+    }
+
+    if (etapa === 'calls') {
+      this.expandedSubStepId.set('contact');
+    }
   }
 
   badgeStatus(status: string): string {

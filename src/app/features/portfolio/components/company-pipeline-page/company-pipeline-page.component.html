@@ -1,4 +1,4 @@
-<a class="link-back" routerLink="/portafolio">← Volver al portafolio</a>
+<a class="link-back" routerLink="/portafolio/pipeline">← Volver a en gestión</a>
 
 @if (loading()) {
 <p class="state">Cargando pipeline…</p>
@@ -35,7 +35,14 @@
     [stage]="stage"
     [pipeline]="p"
     [actionLoading]="actionLoading()"
+    [expandedSubStepId]="expandedSubStepId()"
+    [callsFocusAction]="callsFocusAction()"
+    [selectedCallId]="callsSelectedId()"
+    [callsRefreshKey]="callsRefreshKey()"
+    [callsCount]="callsCount()"
+    (expandedSubStepChange)="onExpandedSubStepChange($event)"
     (actionRequested)="onActionRequested($event)"
+    (callsChanged)="onCallsChanged()"
   />
   }
 

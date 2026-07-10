@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { SalesCallsService, BatchLead } from '../../../../core/services/sales-calls.service';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { BatchLead, SalesCallsService } from '../../../../core/services/sales-calls.service';
 import { isValidE164, toE164 } from '../../../../shared/utils/phone.util';
+import { PIPELINE_STAGE_LABELS, PIPELINE_STAGE_ORDER, PipelineStageId } from '../../models/pipeline-stage.model';
 import { PortfolioCompanySummary, PortfolioKpis } from '../../models/portfolio-company.model';
-import { PortfolioRepository, PORTFOLIO_REPOSITORY } from '../../models/portfolio.repository';
+import { PortfolioListSection, PortfolioRepository, PORTFOLIO_REPOSITORY } from '../../models/portfolio.repository';
 import { activationStatusLabel } from '../../utils/follow-up.util';
 
 const PAGE_SIZE = 10;
@@ -24,6 +25,7 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
   private readonly repository = inject<PortfolioRepository>(PORTFOLIO_REPOSITORY);
   private readonly salesCalls = inject(SalesCallsService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly pageSize = PAGE_SIZE;
   readonly companies = signal<PortfolioCompanySummary[]>([]);
@@ -33,6 +35,32 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
   readonly searchQuery = signal('');
   readonly page = signal(1);
   readonly total = signal(0);
+  readonly section = signal<PortfolioListSection>('pending_calls');
+  readonly stageFilter = signal<PipelineStageId | ''>('');
+
+  readonly stageOrder = PIPELINE_STAGE_ORDER;
+  readonly stageLabels = PIPELINE_STAGE_LABELS;
+
+  readonly isPendingSection = computed(() => this.section() === 'pending_calls');
+  readonly isPipelineSection = computed(() => this.section() === 'pipeline');
+
+  readonly pendingCallableOnPage = computed(
+    () => this.companies().filter((c) => this.hasPhone(c)).length,
+  );
+
+  readonly pendingMissingPhoneOnPage = computed(
+    () => this.companies().length - this.pendingCallableOnPage(),
+  );
+
+  readonly pageTitle = computed(() =>
+    this.isPendingSection() ? 'Por llamar' : 'En gestión',
+  );
+
+  readonly pageSubtitle = computed(() =>
+    this.isPendingSection()
+      ? 'Empresas pendientes de contacto. Abre cada empresa para gestionar llamadas.'
+      : 'Empresas con contacto realizado o en proceso de colocación.',
+  );
 
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.total() / PAGE_SIZE)));
   readonly rangeStart = computed(() => (this.total() === 0 ? 0 : (this.page() - 1) * PAGE_SIZE + 1));
@@ -41,11 +69,7 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
   readonly canGoNext = computed(() => this.page() < this.totalPages());
   readonly pageItems = computed(() => buildPageItems(this.totalPages(), this.page()));
 
-  private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-
   readonly selectedIds = signal<Set<string>>(new Set());
-
-  // Estado del modal de confirmación (human-in-the-loop).
   readonly showCallModal = signal(false);
   readonly callScope = signal<CallScope>('single');
   readonly callTarget = signal<PortfolioCompanySummary | null>(null);
@@ -53,16 +77,10 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
   readonly calling = signal(false);
   readonly feedback = signal<string | null>(null);
 
-  statusLabel = activationStatusLabel;
-
-  // La búsqueda y la paginación se resuelven en el servidor; aquí se expone la
-  // página actual para la selección múltiple.
-  readonly filteredCompanies = computed(() => this.companies());
-
   readonly selectedCount = computed(() => this.selectedIds().size);
 
   readonly allVisibleSelected = computed(() => {
-    const visible = this.filteredCompanies();
+    const visible = this.companies();
     if (visible.length === 0) {
       return false;
     }
@@ -70,14 +88,34 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
     return visible.every((c) => selected.has(c.id));
   });
 
-  // Empresas seleccionadas que tienen teléfono válido para llamar.
   readonly callableSelected = computed(() =>
-    this.companies().filter((c) => this.selectedIds().has(c.id) && !!toE164(c.phone)),
+    this.companies().filter((c) => this.selectedIds().has(c.id) && this.hasPhone(c)),
   );
 
   readonly editablePhoneValid = computed(() => isValidE164(toE164(this.editablePhone())));
 
+  private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  statusLabel = activationStatusLabel;
+
   ngOnInit(): void {
+    const initialSection =
+      (this.route.snapshot.data['section'] as PortfolioListSection | undefined) ?? 'pending_calls';
+    this.section.set(initialSection);
+
+    this.route.data.subscribe((data) => {
+      const nextSection = (data['section'] as PortfolioListSection | undefined) ?? 'pending_calls';
+      if (nextSection === this.section()) {
+        return;
+      }
+      this.section.set(nextSection);
+      this.stageFilter.set('');
+      this.page.set(1);
+      this.searchQuery.set('');
+      this.selectedIds.set(new Set());
+      this.load();
+    });
+
     this.loadKpis();
     this.load();
   }
@@ -98,6 +136,8 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
         page: this.page(),
         pageSize: PAGE_SIZE,
         search: this.searchQuery().trim() || undefined,
+        section: this.section(),
+        stage: this.stageFilter() || undefined,
       })
       .subscribe({
         next: (result) => {
@@ -142,6 +182,16 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
     this.load();
   }
 
+  onStageFilterChange(stage: PipelineStageId | ''): void {
+    this.stageFilter.set(stage);
+    this.page.set(1);
+    this.load();
+  }
+
+  isStageFilterActive(stage: PipelineStageId | ''): boolean {
+    return this.stageFilter() === stage;
+  }
+
   goToPrevPage(): void {
     if (!this.canGoPrev()) return;
     this.page.update((current) => current - 1);
@@ -171,15 +221,13 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
     void this.router.navigate(['/portafolio', company.id]);
   }
 
-  badgeStatus(status: string): string {
-    if (status === 'activated') return 'activated';
-    if (status === 'at_risk') return 'at_risk';
-    if (status === 'cancelled') return 'cancelled';
-    return 'pending';
-  }
-
-  hasPhone(company: PortfolioCompanySummary): boolean {
-    return !!toE164(company.phone);
+  contactCompany(company: PortfolioCompanySummary, event?: Event): void {
+    event?.stopPropagation();
+    const queryParams: Record<string, string> = { etapa: 'calls' };
+    if (company.hasCall) {
+      queryParams['historial'] = '1';
+    }
+    void this.router.navigate(['/portafolio', company.id], { queryParams });
   }
 
   isSelected(company: PortfolioCompanySummary): boolean {
@@ -201,10 +249,8 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
       this.selectedIds.set(new Set());
       return;
     }
-    this.selectedIds.set(new Set(this.filteredCompanies().map((c) => c.id)));
+    this.selectedIds.set(new Set(this.companies().map((c) => c.id)));
   }
-
-  // --- Llamadas (human-in-the-loop) ---
 
   openSingleCall(company: PortfolioCompanySummary, event?: Event): void {
     event?.stopPropagation();
@@ -240,10 +286,21 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
     }
   }
 
+  badgeStatus(status: string): string {
+    if (status === 'activated') return 'activated';
+    if (status === 'at_risk') return 'at_risk';
+    if (status === 'cancelled') return 'cancelled';
+    return 'pending';
+  }
+
+  hasPhone(company: PortfolioCompanySummary): boolean {
+    return !!toE164(company.phone);
+  }
+
   private confirmSingleCall(): void {
     const company = this.callTarget();
     const phone = toE164(this.editablePhone());
-    if (!company || !phone) {
+    if (!company || !phone || !this.editablePhoneValid()) {
       return;
     }
 
@@ -251,7 +308,7 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
     this.salesCalls
       .initiateCall({
         phoneNumber: phone,
-        customerName: company.name,
+        customerName: company.representanteLegalNombre ?? company.name,
         customerEmail: company.email ?? undefined,
         variables: this.callContext(company),
       })
@@ -259,11 +316,11 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
         next: (call) => {
           this.calling.set(false);
           this.showCallModal.set(false);
-          this.showFeedback(`Llamada encolada para ${company.name} (estado: ${call.status}).`);
+          this.showFeedback(`Contacto encolado para ${company.name} (estado: ${call.status}).`);
         },
         error: () => {
           this.calling.set(false);
-          this.showFeedback('No se pudo iniciar la llamada. Intenta de nuevo.');
+          this.showFeedback('No se pudo iniciar el contacto. Intenta de nuevo.');
         },
       });
   }
@@ -277,12 +334,12 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
     const leads: BatchLead[] = targets.map((company) => ({
       leadId: company.id,
       phoneNumber: toE164(company.phone) as string,
-      customerName: company.name,
+      customerName: company.representanteLegalNombre ?? company.name,
       customerEmail: company.email ?? undefined,
       variables: this.callContext(company),
     }));
 
-    const name = `Campaña portafolio ${new Date().toLocaleString('es-CO')}`;
+    const name = `Campaña por llamar ${new Date().toLocaleString('es-CO')}`;
 
     this.calling.set(true);
     this.salesCalls.createBatch({ name, leads }).subscribe({
@@ -291,7 +348,7 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
         this.showCallModal.set(false);
         this.selectedIds.set(new Set());
         this.showFeedback(
-          `Campaña creada con ${leads.length} llamada(s) (estado: ${batch.status}).`,
+          `Campaña creada con ${leads.length} contacto(s) (estado: ${batch.status}).`,
         );
       },
       error: () => {
@@ -301,23 +358,15 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Variables de contexto que el agente Fonema usa en el protocolo de
-  // verificación (nombre de empresa, NIT y representante legal). Deben
-  // coincidir con las variables del script del agente: `empresa`, `nit` y
-  // `nombre` (nombre del representante legal).
   private callContext(company: PortfolioCompanySummary): Record<string, string> {
     const context: Record<string, string> = {
       empresa: company.name,
       nit: company.nit,
     };
-    if (company.representanteLegalNombre) {
-      context['nombre'] = company.representanteLegalNombre;
+    if (company.representanteLegalNombre?.trim()) {
+      context['nombre'] = company.representanteLegalNombre.trim();
     }
     return context;
-  }
-
-  goToCalls(): void {
-    void this.router.navigate(['/llamadas']);
   }
 
   private showFeedback(message: string): void {

@@ -16,7 +16,12 @@
 
   <ul class="checklist">
     @for (step of stage.subSteps; track step.id) {
-    <li class="check-item" [attr.data-status]="step.status">
+    <li
+      class="check-item"
+      [class.expanded]="isExpanded(step.id)"
+      [class.expandable]="isExpandableSubStep(step.id)"
+      [attr.data-status]="step.status"
+    >
       <span class="check-icon">
         @if (step.status === 'completed') {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
@@ -29,11 +34,25 @@
         }
       </span>
       <div class="check-body">
-        <div class="check-top">
-          <strong>{{ step.title }}</strong>
-          <span class="badge sm" [attr.data-status]="step.status">{{ statusLabel(step.status) }}</span>
-        </div>
-        <p>{{ step.description }}</p>
+        <button
+          type="button"
+          class="check-top"
+          [class.clickable]="isExpandableSubStep(step.id)"
+          [disabled]="!isExpandableSubStep(step.id)"
+          (click)="toggleSubStep(step.id)"
+        >
+          <div class="check-top-main">
+            <strong>{{ step.title }}</strong>
+            @if (isCallsStage() && step.id === 'recording' && recordingCountLabel(); as countLabel) {
+            <span class="step-count-badge">{{ countLabel }}</span>
+            }
+            <span class="badge sm" [attr.data-status]="step.status">{{ statusLabel(step.status) }}</span>
+          </div>
+          @if (isExpandableSubStep(step.id)) {
+          <span class="chevron" [class.open]="isExpanded(step.id)">›</span>
+          }
+        </button>
+        <p>{{ subStepDescription(step.id, step.description) }}</p>
         <div class="meta">
           @if (step.assignee) {
           <span>Responsable: {{ step.assignee }}</span>
@@ -42,6 +61,42 @@
           <span>Completado: {{ step.completedAt | date: 'short' }}</span>
           }
         </div>
+
+        @if (isCallsStage() && step.id === 'contact' && isExpanded(step.id)) {
+        <div class="substep-expand">
+          <app-company-calls-panel
+            section="contact"
+            [embedded]="true"
+            [companyId]="pipeline.id"
+            [companyName]="pipeline.name"
+            [companyNit]="companyNit()"
+            [phone]="pipeline.phone ?? null"
+            [email]="pipeline.email ?? null"
+            [representanteLegalNombre]="pipeline.representanteLegalNombre ?? null"
+            [focusAction]="callsFocusAction"
+            (callsChanged)="callsChanged.emit()"
+          />
+        </div>
+        }
+
+        @if (isCallsStage() && step.id === 'recording' && isExpanded(step.id)) {
+        <div class="substep-expand">
+          <app-company-calls-panel
+            section="history"
+            [embedded]="true"
+            [companyId]="pipeline.id"
+            [companyName]="pipeline.name"
+            [companyNit]="companyNit()"
+            [phone]="pipeline.phone ?? null"
+            [email]="pipeline.email ?? null"
+            [representanteLegalNombre]="pipeline.representanteLegalNombre ?? null"
+            [selectedCallId]="selectedCallId"
+            [refreshKey]="callsRefreshKey"
+            (callsChanged)="callsChanged.emit()"
+            (goToContact)="onGoToContact()"
+          />
+        </div>
+        }
       </div>
     </li>
     }

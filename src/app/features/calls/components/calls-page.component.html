@@ -2,21 +2,21 @@
   <div class="brand">
     <div>
       <h1>Llamadas</h1>
-      <p>Resultados de llamadas del agente de voz de ventas</p>
+      <p>Historial del agente automático y registro manual del asesor</p>
     </div>
   </div>
-  <button class="refresh" (click)="refresh()">↻ Actualizar</button>
+  <div class="topbar-actions">
+    <button type="button" class="btn-secondary" (click)="openManualForm()">Registrar llamada manual</button>
+    <button type="button" class="refresh" (click)="refresh()">↻ Actualizar</button>
+  </div>
 </header>
 
 @if (loading()) {
   <p class="state">Cargando llamadas…</p>
 } @else if (error()) {
   <p class="state error">{{ error() }}</p>
-} @else if (calls().length === 0) {
-  <p class="state">Aún no hay llamadas registradas.</p>
 } @else {
   <div class="layout">
-    <!-- Lista -->
     <aside class="list">
       @for (call of calls(); track call.id) {
         <button
@@ -25,157 +25,262 @@
           (click)="select(call)"
         >
           <div class="row">
-            <strong>{{ call.customerName || 'Sin nombre' }}</strong>
+            <strong>{{ call.customerName || call.variables['empresa'] || 'Sin nombre' }}</strong>
             <span class="badge" [attr.data-status]="call.status">{{ statusLabel(call.status) }}</span>
           </div>
-          <div class="muted">{{ call.phoneNumber }}</div>
+          <div class="row-meta">
+            @if (isManualCall(call)) {
+            <span class="origin-tag manual">Manual</span>
+            } @else {
+            <span class="origin-tag agent">Agente</span>
+            }
+            <span class="muted">{{ call.phoneNumber }}</span>
+          </div>
           <div class="muted small">{{ call.createdAt | date: 'short' }}</div>
           @if (identityVerified(call) !== null || clientInterested(call) !== null) {
-            <div class="tags">
-              @if (identityVerified(call) !== null) {
-                <span class="tag" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
-                  {{ identityVerified(call) ? '✓ Identidad' : '✗ Identidad' }}
-                </span>
-              }
-              @if (clientInterested(call) !== null) {
-                <span class="tag" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
-                  {{ clientInterested(call) ? '✓ Interesado' : '✗ No interesado' }}
-                </span>
-              }
-            </div>
+          <div class="tags">
+            @if (identityVerified(call) !== null) {
+            <span class="tag" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
+              {{ identityVerified(call) ? '✓ Identidad' : '✗ Identidad' }}
+            </span>
+            }
+            @if (clientInterested(call) !== null) {
+            <span class="tag" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
+              {{ clientInterested(call) ? '✓ Interesado' : '✗ No interesado' }}
+            </span>
+            }
+          </div>
           }
         </button>
       }
     </aside>
 
-    <!-- Detalle -->
     <section class="detail">
-      @if (selected(); as call) {
+      @if (showManualForm()) {
+      <div class="manual-form-card">
         <div class="detail-head">
           <div>
-            <h2>{{ call.customerName || 'Sin nombre' }}</h2>
-            <p class="muted">{{ call.phoneNumber }}</p>
+            <h2>Registrar llamada manual</h2>
+            <p class="muted">Para cuando el asesor llama directamente y diligencia las comprobaciones sin usar el agente.</p>
           </div>
-          <span class="badge lg" [attr.data-status]="call.status">{{ statusLabel(call.status) }}</span>
+          <button type="button" class="btn-ghost" (click)="closeManualForm()">Cerrar</button>
         </div>
 
-        <div class="stats">
-          <div class="kpi">
-            <span class="kpi-value">{{ call.durationSeconds ?? '—' }}</span>
-            <span class="kpi-caption">Duración (segundos)</span>
-          </div>
-          <div class="kpi">
-            <span class="kpi-value" [class.ok]="isSuccess(call.successEvaluation)" [class.no]="call.successEvaluation !== undefined && !isSuccess(call.successEvaluation)">
-              {{ call.successEvaluation === undefined ? '—' : (isSuccess(call.successEvaluation) ? 'Éxito' : 'No exitosa') }}
-            </span>
-            <span class="kpi-caption">Resultado</span>
-          </div>
-          <div class="kpi">
-            <span class="kpi-value small">{{ call.endedReason || '—' }}</span>
-            <span class="kpi-caption">Motivo de fin</span>
-          </div>
+        <div class="form-grid">
+          <label class="field">
+            <span>Empresa</span>
+            <input type="text" [ngModel]="manualEmpresa()" (ngModelChange)="manualEmpresa.set($event)" placeholder="Nombre de la empresa" />
+          </label>
+          <label class="field">
+            <span>NIT</span>
+            <input type="text" [ngModel]="manualNit()" (ngModelChange)="manualNit.set($event)" placeholder="NIT de la empresa" />
+          </label>
+          <label class="field">
+            <span>Contacto</span>
+            <input type="text" [ngModel]="manualContacto()" (ngModelChange)="manualContacto.set($event)" placeholder="Nombre del representante" />
+          </label>
+          <label class="field">
+            <span>Teléfono (opcional)</span>
+            <input type="tel" [ngModel]="manualPhone()" (ngModelChange)="manualPhone.set($event)" placeholder="+573001234567" />
+            @if (!manualPhoneValid()) {
+            <small class="field-error">Formato inválido. Usa E.164, ej. +573001234567.</small>
+            }
+          </label>
         </div>
 
-        <!-- Resultado de la llamada (variables de salida de Fonema) -->
-        @if (identityVerified(call) !== null || clientInterested(call) !== null || noInterestReason(call)) {
+        <div class="checks-card">
+          <h3>Comprobaciones del protocolo</h3>
+          <label class="check-row">
+            <input type="checkbox" [ngModel]="manualIdentidad()" (ngModelChange)="manualIdentidad.set($event)" />
+            <span>Identidad verificada (nombre, empresa y NIT confirmados)</span>
+          </label>
+          <label class="check-row">
+            <input type="checkbox" [ngModel]="manualInteresado()" (ngModelChange)="manualInteresado.set($event)" />
+            <span>Cliente interesado en la tarjeta LATAM Business</span>
+          </label>
+          @if (!manualInteresado()) {
+          <label class="field full">
+            <span>Motivo de no interés</span>
+            <input type="text" [ngModel]="manualMotivo()" (ngModelChange)="manualMotivo.set($event)" placeholder="Ej. No requiere cupo adicional" />
+          </label>
+          }
+        </div>
+
+        <div class="form-grid">
+          <label class="field full">
+            <span>Notas de la llamada (opcional)</span>
+            <textarea rows="3" [ngModel]="manualSummary()" (ngModelChange)="manualSummary.set($event)" placeholder="Resumen breve de lo conversado"></textarea>
+          </label>
+          <label class="field">
+            <span>Duración en segundos (opcional)</span>
+            <input type="number" min="0" [ngModel]="manualDuration()" (ngModelChange)="manualDuration.set($event ? +$event : null)" />
+          </label>
+        </div>
+
+        @if (manualError()) {
+        <p class="state error">{{ manualError() }}</p>
+        }
+        @if (manualSuccess()) {
+        <p class="state success">{{ manualSuccess() }}</p>
+        }
+
+        <div class="form-actions">
+          <button type="button" class="btn-ghost" (click)="closeManualForm()">Cancelar</button>
+          <button
+            type="button"
+            class="btn-primary"
+            [disabled]="!manualCanSubmit() || savingManual()"
+            (click)="submitManualCall()"
+          >
+            {{ savingManual() ? 'Guardando…' : 'Guardar llamada manual' }}
+          </button>
+        </div>
+      </div>
+      } @else {
+        @if (selected(); as call) {
+          <div class="detail-head">
+            <div>
+              <h2>{{ call.customerName || call.variables['empresa'] || 'Sin nombre' }}</h2>
+              <p class="muted">
+                {{ call.phoneNumber }}
+                @if (call.variables['nit']) { · NIT {{ call.variables['nit'] }} }
+              </p>
+            </div>
+            <div class="head-tags">
+              @if (isManualCall(call)) {
+              <span class="origin-tag manual lg">Manual</span>
+              } @else {
+              <span class="origin-tag agent lg">Agente</span>
+              }
+              <span class="badge lg" [attr.data-status]="call.status">{{ statusLabel(call.status) }}</span>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="kpi">
+              <span class="kpi-value">{{ call.durationSeconds ?? '—' }}</span>
+              <span class="kpi-caption">Duración (segundos)</span>
+            </div>
+            <div class="kpi">
+              <span class="kpi-value" [class.ok]="isSuccess(call.successEvaluation)" [class.no]="call.successEvaluation !== undefined && !isSuccess(call.successEvaluation)">
+                {{ call.successEvaluation === undefined ? '—' : (isSuccess(call.successEvaluation) ? 'Éxito' : 'No exitosa') }}
+              </span>
+              <span class="kpi-caption">Resultado</span>
+            </div>
+            <div class="kpi">
+              <span class="kpi-value small">{{ call.endedReason || '—' }}</span>
+              <span class="kpi-caption">Motivo de fin</span>
+            </div>
+          </div>
+
+          @if (identityVerified(call) !== null || clientInterested(call) !== null || noInterestReason(call)) {
           <div class="card">
             <h3>Resultado de la llamada</h3>
             <div class="result">
               @if (identityVerified(call) !== null) {
-                <div class="result-item">
-                  <span class="result-label">Identidad verificada</span>
-                  <span class="pill" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
-                    {{ identityVerified(call) ? 'Sí' : 'No' }}
-                  </span>
-                </div>
+              <div class="result-item">
+                <span class="result-label">Identidad verificada</span>
+                <span class="pill" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
+                  {{ identityVerified(call) ? 'Sí' : 'No' }}
+                </span>
+              </div>
               }
               @if (clientInterested(call) !== null) {
-                <div class="result-item">
-                  <span class="result-label">Cliente interesado</span>
-                  <span class="pill" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
-                    {{ clientInterested(call) ? 'Sí' : 'No' }}
-                  </span>
-                </div>
+              <div class="result-item">
+                <span class="result-label">Cliente interesado</span>
+                <span class="pill" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
+                  {{ clientInterested(call) ? 'Sí' : 'No' }}
+                </span>
+              </div>
               }
               @if (noInterestReason(call); as reason) {
-                <div class="result-item wide">
-                  <span class="result-label">Motivo de no interés</span>
-                  <span class="result-value">{{ reason }}</span>
-                </div>
+              <div class="result-item wide">
+                <span class="result-label">Motivo de no interés</span>
+                <span class="result-value">{{ reason }}</span>
+              </div>
               }
             </div>
           </div>
-        }
+          }
 
-        <!-- Datos extraídos de la llamada (resto de variables de salida) -->
-        @if (outputEntries(call).length > 0) {
+          @if (outputEntries(call).length > 0) {
           <div class="card">
             <h3>Datos extraídos de la llamada</h3>
             <div class="vars">
               @for (entry of outputEntries(call); track entry.key) {
-                <div class="var">
-                  <span class="var-key">{{ entry.key }}</span>
-                  <span class="var-val">{{ entry.value }}</span>
-                </div>
+              <div class="var">
+                <span class="var-key">{{ entry.key }}</span>
+                <span class="var-val">{{ entry.value }}</span>
+              </div>
               }
             </div>
           </div>
-        }
+          }
 
-        <!-- Análisis estructurado -->
-        @if (structuredEntries(call.structuredData).length > 0) {
+          @if (structuredEntries(call.structuredData).length > 0) {
           <div class="card">
             <h3>Análisis</h3>
             <div class="vars">
               @for (entry of structuredEntries(call.structuredData); track entry.key) {
-                <div class="var">
-                  <span class="var-key">{{ entry.key }}</span>
-                  <span class="var-val">{{ entry.value }}</span>
-                </div>
+              <div class="var">
+                <span class="var-key">{{ entry.key }}</span>
+                <span class="var-val">{{ entry.value }}</span>
+              </div>
               }
             </div>
           </div>
-        }
+          }
 
-        <!-- Resumen -->
-        @if (call.summary) {
+          @if (call.summary) {
           <div class="card">
             <h3>Resumen</h3>
             <p>{{ call.summary }}</p>
           </div>
-        }
+          }
 
-        <!-- Grabación -->
-        <div class="card">
-          <h3>Grabación</h3>
-          @if (call.recordingUrl) {
+          @if (!isManualCall(call)) {
+          <div class="card">
+            <h3>Grabación</h3>
+            @if (call.recordingUrl) {
             <audio class="player" controls [src]="recordingUrl(call)"></audio>
-          } @else {
+            } @else {
             <p class="muted">Sin grabación disponible.</p>
-          }
-          @if (call.detailsUrl) {
-            <a class="link" [href]="call.detailsUrl" target="_blank" rel="noopener">🔗 Ver detalle en Fonema</a>
-          }
-        </div>
+            }
+            @if (call.detailsUrl) {
+            <a class="link" [href]="call.detailsUrl" target="_blank" rel="noopener">Ver detalle en Fonema</a>
+            }
+          </div>
 
-        <!-- Transcript -->
-        @if (call.transcript && call.transcript.length > 0) {
+          @if (call.transcript && call.transcript.length > 0) {
           <div class="card">
             <h3>Transcripción</h3>
             <div class="chat">
               @for (msg of call.transcript; track $index) {
                 @if (msg.role !== 'system') {
-                  <div class="msg" [class.agent]="msg.role === 'bot' || msg.role === 'agent'" [class.user]="msg.role === 'user'">
-                    <span class="who">{{ msg.role === 'user' ? 'Cliente' : 'Agente' }}</span>
-                    <p>{{ msg.message }}</p>
-                  </div>
+                <div class="msg" [class.agent]="msg.role === 'bot' || msg.role === 'agent'" [class.user]="msg.role === 'user'">
+                  <span class="who">{{ msg.role === 'user' ? 'Cliente' : 'Agente' }}</span>
+                  <p>{{ msg.message }}</p>
+                </div>
                 }
               }
             </div>
           </div>
+          }
+          } @else {
+          <div class="card">
+            <h3>Llamada atendida por asesor</h3>
+            <p class="muted">Esta llamada fue registrada manualmente. No hay grabación ni transcripción del agente automático.</p>
+          </div>
+          }
+        } @else if (calls().length === 0) {
+        <div class="empty-detail">
+          <h2>Sin llamadas registradas</h2>
+          <p class="muted">Puedes registrar una llamada manual si el asesor contactó al cliente directamente.</p>
+          <button type="button" class="btn-primary" (click)="openManualForm()">Registrar llamada manual</button>
+        </div>
+        } @else {
+        <p class="state">Selecciona una llamada de la lista o registra una manual.</p>
         }
-      } @else {
-        <p class="state">Selecciona una llamada de la lista.</p>
       }
     </section>
   </div>

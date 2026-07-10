@@ -3,10 +3,6 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { SALES_CALLS_API } from '../config/api.config';
 
-// Servicio transversal (core) para disparar llamadas de venta contra el backend
-// sales-calls. Vive en core/ para que features como portfolio puedan usarlo sin
-// importar internals de la feature calls (regla de comunicación entre features).
-
 export interface InitiateCallRequest {
   phoneNumber: string;
   customerName?: string;
@@ -42,15 +38,54 @@ export interface CreatedBatch {
 
 export type CallStatus = 'queued' | 'initiated' | 'in_progress' | 'completed' | 'failed';
 
-/** Vista mínima de una llamada para correlacionar el estado del pipeline por cliente. */
-export interface CallRecord {
+export interface TranscriptMessage {
+  role: string;
+  message: string;
+}
+
+/** Vista completa de una llamada para paneles de detalle por cliente. */
+export interface CallDetail {
   id: string;
+  sessionId?: string;
+  caseId?: string;
+  agentId: string;
   phoneNumber: string;
+  customerName?: string;
+  customerEmail?: string;
+  variables: Record<string, string>;
+  outputVariables?: Record<string, string>;
   status: CallStatus;
   recordingUrl?: string;
+  transcript?: TranscriptMessage[];
+  summary?: string;
+  endedReason?: string;
+  startedAt?: string;
+  durationSeconds?: number;
   successEvaluation?: boolean | string;
-  variables?: Record<string, string>;
-  updatedAt?: string;
+  structuredData?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Vista mínima de una llamada para correlacionar el estado del pipeline por cliente. */
+export type CallRecord = Pick<
+  CallDetail,
+  'id' | 'phoneNumber' | 'status' | 'recordingUrl' | 'successEvaluation' | 'variables' | 'updatedAt'
+>;
+
+export interface RegisterManualCallRequest {
+  phoneNumber?: string;
+  customerName: string;
+  customerEmail?: string;
+  variables: {
+    empresa: string;
+    nit: string;
+  };
+  identidadVerificada: boolean;
+  clienteInteresado: boolean;
+  motivoNoInteres?: string;
+  summary?: string;
+  durationSeconds?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -65,7 +100,19 @@ export class SalesCallsService {
     return this.http.post<CreatedBatch>(`${SALES_CALLS_API}/batches`, request);
   }
 
-  listCalls(): Observable<CallRecord[]> {
-    return this.http.get<CallRecord[]>(`${SALES_CALLS_API}/calls`);
+  listCalls(): Observable<CallDetail[]> {
+    return this.http.get<CallDetail[]>(`${SALES_CALLS_API}/calls`);
+  }
+
+  getCall(id: string): Observable<CallDetail> {
+    return this.http.get<CallDetail>(`${SALES_CALLS_API}/calls/${id}`);
+  }
+
+  registerManual(request: RegisterManualCallRequest): Observable<CallDetail> {
+    return this.http.post<CallDetail>(`${SALES_CALLS_API}/calls/manual`, request);
+  }
+
+  recordingUrl(callId: string): string {
+    return `${SALES_CALLS_API}/calls/${callId}/recording`;
   }
 }

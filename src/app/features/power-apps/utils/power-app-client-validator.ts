@@ -1,6 +1,7 @@
 import {
   looksLikeEmpresaNit,
   looksLikeNaturalPersonDocument,
+  looksLikeTarjetahabienteDocument,
   normalizeIdentification,
 } from './colombian-id.util';
 import { PowerAppSubmitRequest, ValidationIssue } from '../models/power-app-submit.model';
@@ -50,9 +51,11 @@ function validateIdentificaciones(request: PowerAppSubmitRequest): ValidationIss
   const nitLooksLikeCedula =
     looksLikeNaturalPersonDocument(request.identificacionEmpresa) &&
     !looksLikeEmpresaNit(request.identificacionEmpresa);
+  const docTipo = request.tipoIdentificacionTarjetahabiente;
   const docLooksLikeNit =
+    (docTipo === 'CC' || docTipo === 'TI') &&
     looksLikeEmpresaNit(request.numeroIdentificacionTarjetahabiente) &&
-    !looksLikeNaturalPersonDocument(request.numeroIdentificacionTarjetahabiente);
+    !looksLikeTarjetahabienteDocument(request.numeroIdentificacionTarjetahabiente, docTipo);
 
   if (nitLooksLikeCedula && docLooksLikeNit) {
     issues.push(
@@ -83,13 +86,25 @@ function validateIdentificaciones(request: PowerAppSubmitRequest): ValidationIss
     );
   }
 
-  if (!looksLikeNaturalPersonDocument(request.numeroIdentificacionTarjetahabiente)) {
+  if (
+    !looksLikeTarjetahabienteDocument(
+      request.numeroIdentificacionTarjetahabiente,
+      request.tipoIdentificacionTarjetahabiente,
+    )
+  ) {
+    const suggestionByTipo: Record<string, string> = {
+      CC: 'Ingrese la cédula del colaborador o representante designado (6 a 11 dígitos).',
+      TI: 'Ingrese el número de tarjeta de identidad (6 a 11 dígitos).',
+      CE: 'Ingrese la cédula de extranjería (6 a 15 dígitos).',
+      PA: 'Ingrese el pasaporte (5 a 20 caracteres alfanuméricos).',
+    };
     issues.push(
       issue(
         'INVALID_FORMAT',
         'numeroIdentificacionTarjetahabiente',
-        'El documento del tarjetahabiente no parece corresponder a una persona natural.',
-        'Ingrese la cédula del colaborador o representante designado.',
+        'El documento del tarjetahabiente no coincide con el tipo seleccionado.',
+        suggestionByTipo[request.tipoIdentificacionTarjetahabiente] ??
+          'Verifique el tipo y número de documento del tarjetahabiente.',
       ),
     );
   }
