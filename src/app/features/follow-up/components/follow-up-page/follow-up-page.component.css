@@ -1,23 +1,28 @@
+:host {
+  display: block;
+  padding: 40px 48px 56px;
+}
+
 .page-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 28px;
 }
 
 .kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 14px;
-  margin-bottom: 20px;
+  gap: 16px;
+  margin-bottom: 28px;
 }
 
 .kpi {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 16px 18px;
+  gap: 6px;
+  padding: 20px 22px;
 }
 
 .kpi-value {
@@ -35,40 +40,50 @@
 }
 
 .empty {
-  padding: 28px;
+  padding: 32px;
   text-align: center;
+}
+
+.empty p {
+  margin: 0 0 8px;
 }
 
 .case-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 20px;
 }
 
 .case {
-  padding: 18px 20px;
+  padding: 24px 28px;
 }
 
 .case-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
+  margin-bottom: 4px;
 }
 
 .case-head h3 {
-  margin: 0 0 2px;
+  margin: 0 0 6px;
+}
+
+.case-head .muted {
+  margin: 0;
 }
 
 .usage-meter {
-  margin: 14px 0 6px;
+  margin: 20px 0 8px;
 }
 
 .usage-top {
   display: flex;
   justify-content: space-between;
+  gap: 12px;
   font-size: 14px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .bar {
@@ -105,14 +120,14 @@
 .case-meta {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px 16px;
-  margin: 14px 0;
+  gap: 16px 20px;
+  margin: 20px 0 24px;
 }
 
 .case-meta > div {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   font-size: 14px;
 }
 
@@ -123,10 +138,16 @@
   letter-spacing: 0.03em;
 }
 
+.meta-label.done {
+  color: var(--exito, #52a852);
+  font-weight: 700;
+}
+
 .case-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .case-actions .btn-secondary {

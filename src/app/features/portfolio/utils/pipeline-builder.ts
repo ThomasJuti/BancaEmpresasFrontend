@@ -133,6 +133,10 @@ export function resolveStageActions(stage: PipelineStage, pipeline: CompanyPipel
     );
   }
 
+  if (stage.id === 'follow_up' && stage.status === 'completed') {
+    return [];
+  }
+
   return stage.actions;
 }
 
@@ -195,6 +199,9 @@ export function applyPipelineAction(
         s.completedAt = new Date().toISOString();
       });
       stage.status = 'completed';
+      pipeline.currentStageId = 'follow_up';
+      pipeline.currentStageLabel = PIPELINE_STAGE_LABELS.follow_up;
+      pipeline.progressPercent = 100;
       return 'Entrega de la TC finalizada.';
     case 'view_call':
       return 'Abrir historial de contacto telefónico.';

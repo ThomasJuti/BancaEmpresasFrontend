@@ -252,6 +252,22 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       ? mapBackendStageToFrontend(pipelineCase.stage)
       : INITIAL_STAGE;
     const powerAppSubmitted = pipelineCase ? isPowerAppStageCompleted(pipelineCase.stage) : false;
+    const deliveryFinalized =
+      pipelineCase?.stage === 'activation_follow_up' || pipelineCase?.stage === 'completed';
+
+    const stages = buildStages(currentStageId);
+    if (deliveryFinalized) {
+      // Backend ya avanzó a activation_follow_up: el check "Cierre de entrega" está hecho.
+      const followUp = stages.find((stage) => stage.id === 'follow_up');
+      if (followUp) {
+        followUp.status = 'completed';
+        followUp.subSteps = followUp.subSteps.map((step) => ({
+          ...step,
+          status: 'completed' as const,
+          completedAt: pipelineCase?.updatedAt ?? new Date().toISOString(),
+        }));
+      }
+    }
 
     return {
       id: cliente.clienteId,
@@ -261,7 +277,7 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       clienteId: cliente.clienteId,
       currentStageId,
       currentStageLabel: PIPELINE_STAGE_LABELS[currentStageId],
-      progressPercent: computeProgress(currentStageId),
+      progressPercent: deliveryFinalized ? 100 : computeProgress(currentStageId),
       assignedCommercial: 'Por asignar',
       activationStatus: 'pending',
       phone: cliente.telefono,
@@ -270,7 +286,7 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       pipelineCaseId: pipelineCase?.id,
       pipelineCaseStage: pipelineCase?.stage,
       powerAppSubmittedAt: powerAppSubmitted ? pipelineCase!.updatedAt : undefined,
-      stages: buildStages(currentStageId),
+      stages,
     };
   }
 
