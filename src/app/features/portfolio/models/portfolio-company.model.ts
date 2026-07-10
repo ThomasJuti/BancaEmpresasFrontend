@@ -6,6 +6,7 @@ export interface PortfolioCompanySummary {
   id: string;
   name: string;
   nit: string;
+  clienteId?: string;
   currentStageId: PipelineStageId;
   currentStageLabel: string;
   progressPercent: number;

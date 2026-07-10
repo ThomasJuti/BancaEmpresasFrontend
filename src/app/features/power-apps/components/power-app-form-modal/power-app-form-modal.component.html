@@ -1,0 +1,174 @@
+@if (open) {
+<div class="power-app-overlay modal-overlay" (click)="onBackdropClick($event)" role="presentation">
+  <div class="power-app-modal modal-card wide" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <header class="modal-header">
+      <div>
+        <h4>Solicitud LATAM Business</h4>
+        <p class="muted">{{ companyName }} · NIT {{ companyNit }}</p>
+      </div>
+      <button type="button" class="close-btn" aria-label="Cerrar" (click)="close()">×</button>
+    </header>
+
+    @if (loading()) {
+    <p class="state">Cargando datos de la base inicial…</p>
+    } @else {
+      @if (result(); as res) {
+      <app-power-app-result-panel [result]="res" (retry)="retryForm()" (close)="close()" />
+      } @else {
+    @if (loadError()) {
+    <div class="alert-banner warning">{{ loadError() }}</div>
+    }
+
+  @if (submitError()) {
+  <div class="alert-banner danger">{{ submitError() }}</div>
+  }
+
+  <div class="tabs">
+    @for (tab of tabs; track tab.id) {
+    <button
+      type="button"
+      class="tab"
+      [class.active]="activeTab() === tab.id"
+      (click)="selectTab(tab.id)"
+    >
+      {{ tab.label }}
+    </button>
+    }
+  </div>
+
+  <form [formGroup]="form" class="form-body" (ngSubmit)="submit()">
+    @if (activeTab() === 'cliente') {
+    <section class="tab-panel">
+      <div class="field">
+        <label>Segmento @if (isPrefilled('segmento')) { <span class="tag-prefill">Pre-cargado desde base</span> }</label>
+        <input formControlName="segmento" placeholder="Ej. Empresarial 1" />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>NIT empresa @if (isPrefilled('identificacionEmpresa')) { <span class="tag-prefill">Base</span> }</label>
+          <input formControlName="identificacionEmpresa" />
+        </div>
+        <div class="field">
+          <label>Nombre empresa @if (isPrefilled('nombreEmpresa')) { <span class="tag-prefill">Base</span> }</label>
+          <input formControlName="nombreEmpresa" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Tipo doc. tarjetahabiente</label>
+          <select formControlName="tipoIdentificacionTarjetahabiente">
+            @for (t of docTypes; track t) {
+            <option [value]="t">{{ t }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label>Número documento</label>
+          <input formControlName="numeroIdentificacionTarjetahabiente" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Nombre tarjetahabiente</label>
+        <input formControlName="nombreTarjetahabiente" />
+      </div>
+      <div class="field">
+        <label>Unidad de negocios</label>
+        <input formControlName="unidadNegocios" />
+      </div>
+    </section>
+    }
+
+    @if (activeTab() === 'tarjeta') {
+    <section class="tab-panel">
+      <div class="field">
+        <label>Tipo tarjeta nueva</label>
+        <input formControlName="tipoTarjetaNueva" readonly />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>BIN producto</label>
+          <input formControlName="binProducto" />
+        </div>
+        <div class="field">
+          <label>Cupo tarjeta nueva @if (isPrefilled('cupoTarjetaNueva')) { <span class="tag-prefill">Base</span> }</label>
+          <input type="number" formControlName="cupoTarjetaNueva" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Cupo disponible CEC @if (isPrefilled('cupoDisponibleCec')) { <span class="tag-prefill">Base</span> }</label>
+          <input type="number" formControlName="cupoDisponibleCec" />
+        </div>
+        <div class="field">
+          <label>Cargo débito automático</label>
+          <input formControlName="cargoDebitoAutomatico" placeholder="Ej. Gerente General" />
+        </div>
+      </div>
+    </section>
+    }
+
+    @if (activeTab() === 'adjuntos') {
+    <section class="tab-panel">
+      <p class="hint-block">
+        El simulador registra el <strong>nombre</strong> del certificado PDF; en producción se enviaría el archivo real.
+      </p>
+      <div class="field">
+        <label>Certificado Cámara de Comercio (PDF) *</label>
+        <input type="file" accept=".pdf,application/pdf" (change)="onPdfSelected($event)" />
+      </div>
+      <div class="field">
+        <label>Imágenes adicionales del caso (opcional)</label>
+        <input type="file" accept=".jpg,.jpeg,.png,image/*" (change)="onImageSelected($event)" />
+      </div>
+      @if (attachments().length > 0) {
+      <ul class="attachment-list">
+        @for (file of attachments(); track file) {
+        <li>
+          <span>{{ file }}</span>
+          <button type="button" class="link-action" (click)="removeAttachment(file)">Quitar</button>
+        </li>
+        }
+      </ul>
+      }
+    </section>
+    }
+
+    @if (activeTab() === 'entrega') {
+    <section class="tab-panel">
+      <div class="field-row">
+        <div class="field">
+          <label>Código oficina / centro servicio</label>
+          <input formControlName="codigoOficinaCentroServicio" placeholder="Ej. 610" />
+        </div>
+        <div class="field">
+          <label>Ciudad punto entrega @if (isPrefilled('ciudadPuntoEntrega')) { <span class="tag-prefill">Base</span> }</label>
+          <input formControlName="ciudadPuntoEntrega" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Dirección punto comercial</label>
+        <input formControlName="direccionPuntoComercial" />
+      </div>
+      <div class="field">
+        <label>Punto de entrega</label>
+        <select formControlName="puntoEntrega">
+          @for (opt of puntoEntregaOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+      </div>
+    </section>
+    }
+
+    <div class="form-actions">
+      <button type="button" class="btn-secondary" (click)="close()">Cancelar</button>
+      <button type="submit" class="btn-primary" [disabled]="submitting()">
+        {{ submitting() ? 'Enviando…' : 'Enviar solicitud' }}
+      </button>
+    </div>
+  </form>
+      }
+    }
+  </div>
+</div>
+}

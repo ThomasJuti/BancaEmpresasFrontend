@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
-import { API_BASE_URL } from '../../../core/config/api.config';
+import { SALES_CALLS_API } from '../../../core/config/api.config';
 import { CallsService } from '../services/calls.service';
 import { Call } from '../models/call.model';
 
@@ -48,7 +48,7 @@ export class CallsPageComponent implements OnInit {
   // URL del proxy del backend que sirve el audio con la API key (el link
   // directo de Fonema exige el header Authorization, que el navegador no envía).
   recordingUrl(call: Call): string {
-    return `${API_BASE_URL}/calls/${call.id}/recording`;
+    return `${SALES_CALLS_API}/calls/${call.id}/recording`;
   }
 
   statusLabel(status: Call['status']): string {

@@ -10,6 +10,9 @@
     <div>
       <h1 class="page-title" style="font-size: 32px">{{ p.name }}</h1>
       <p class="page-subtitle">NIT {{ p.nit }} · Comercial: {{ p.assignedCommercial }}</p>
+      @if (lastRadicado()) {
+      <p class="radicado-line">Último radicado GOPTC: <strong>{{ lastRadicado() }}</strong></p>
+      }
     </div>
     <div class="head-badges">
       <span class="badge lg" [attr.data-status]="badgeStatus(p.activationStatus)">{{ statusLabel(p.activationStatus) }}</span>
@@ -33,16 +36,24 @@
     (actionRequested)="onActionRequested($event)"
   />
   }
+
+  <app-power-app-form-modal
+    [open]="showPowerAppModal()"
+    [companyNit]="p.clienteId ?? p.nit"
+    [companyName]="p.name"
+    (closed)="closePowerAppModal()"
+    (submitted)="onPowerAppSubmitted($event)"
+  />
   }
 }
 
-@if (showModal() && pendingAction(); as action) {
-<div class="modal-overlay" (click)="closeModal()" (keydown.escape)="closeModal()" role="presentation">
+@if (showConfirmModal() && pendingAction(); as action) {
+<div class="modal-overlay" (click)="closeConfirmModal()" (keydown.escape)="closeConfirmModal()" role="presentation">
   <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
     <h4>Confirmar acción</h4>
     <p>{{ action.confirmationMessage ?? '¿Desea continuar con esta acción?' }}</p>
     <div class="modal-actions">
-      <button type="button" class="btn-secondary" (click)="closeModal()">Cancelar</button>
+      <button type="button" class="btn-secondary" (click)="closeConfirmModal()">Cancelar</button>
       <button type="button" class="btn-primary" (click)="confirmAction()">{{ action.label }}</button>
     </div>
   </div>

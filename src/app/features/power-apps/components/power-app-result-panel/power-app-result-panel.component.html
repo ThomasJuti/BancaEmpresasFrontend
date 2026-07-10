@@ -1,0 +1,42 @@
+<div class="result-panel">
+  <div class="result-head">
+    <span class="badge lg" [attr.data-status]="decisionBadge(result.decision)">{{ result.decision }}</span>
+    @if (result.radicado) {
+    <span class="radicado">Radicado: <strong>{{ result.radicado }}</strong></span>
+    }
+  </div>
+
+  <p class="summary">{{ result.summary }}</p>
+
+  @if (result.siguientePaso) {
+  <div class="alert-banner info">
+    <strong>Siguiente paso (operaciones)</strong>
+    <p>{{ result.siguientePaso }}</p>
+  </div>
+  }
+
+  @if (result.issues.length > 0) {
+  <div class="issues">
+    <h4>Observaciones</h4>
+    <ul>
+      @for (issue of result.issues; track issue.field + issue.code) {
+      <li [class.error]="issue.severity === 'error'">
+        <strong>{{ issue.field }}</strong> — {{ issue.message }}
+        @if (issue.suggestion) {
+        <span class="hint">{{ issue.suggestion }}</span>
+        }
+      </li>
+      }
+    </ul>
+  </div>
+  }
+
+  <div class="result-actions">
+    @if (result.decision !== 'APROBADO') {
+    <button type="button" class="btn-secondary" (click)="retry.emit()">Corregir y reenviar</button>
+    }
+    <button type="button" class="btn-primary" (click)="close.emit()">
+      {{ result.decision === 'APROBADO' ? 'Cerrar' : 'Cerrar sin guardar' }}
+    </button>
+  </div>
+</div>

@@ -25,8 +25,7 @@ function stageActions(stageId: PipelineStageId): PipelineAction[] {
       { id: 'retry_contact', label: 'Reintentar contacto', kind: 'primary', requiresConfirmation: true, confirmationMessage: '¿Registrar un nuevo intento de contacto telefónico?' },
     ],
     power_app: [
-      { id: 'open_power_app', label: 'Abrir Power App', kind: 'primary' },
-      { id: 'mark_form_complete', label: 'Marcar formulario completo', kind: 'secondary', requiresConfirmation: true, confirmationMessage: '¿Confirmar que el formulario de realce fue diligenciado?' },
+      { id: 'fill_power_app', label: 'Diligenciar solicitud', kind: 'primary' },
     ],
     operations: [
       { id: 'view_ops_status', label: 'Ver estado operaciones', kind: 'secondary' },
@@ -142,8 +141,9 @@ const INITIAL_PIPELINES: CompanyPipeline[] = [
   },
   {
     id: 'emp-002',
-    name: 'Comercial del Pacífico Ltda.',
-    nit: '800987654-3',
+    name: 'GRUPO WONDER SA',
+    nit: '8040175754',
+    clienteId: '8040175754',
     currentStageId: 'power_app',
     currentStageLabel: PIPELINE_STAGE_LABELS.power_app,
     progressPercent: computeProgress('power_app'),
@@ -247,14 +247,17 @@ export class MockPortfolioRepository implements PortfolioRepository {
         stage.subSteps[0].status = 'in_progress';
         return 'Nuevo intento de contacto registrado.';
       case 'mark_form_complete':
+      case 'power_app_approved':
         stage.subSteps.forEach((s) => {
           s.status = 'completed';
           s.completedAt = new Date().toISOString();
         });
         this.advanceStage(pipeline, 'power_app');
-        return 'Formulario Power App marcado como completo.';
-      case 'open_power_app':
-        return 'Power App abierta en nueva pestaña (mock).';
+        return actionId === 'power_app_approved'
+          ? 'Solicitud aprobada. Operaciones puede iniciar realce.'
+          : 'Formulario Power App marcado como completo.';
+      case 'fill_power_app':
+        return 'Abrir formulario de solicitud.';
       case 'resend_goptc':
         return 'Reenvío a GOPTC simulado correctamente.';
       case 'view_ops_status':

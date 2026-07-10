@@ -1,0 +1,65 @@
+.result-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.result-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.radicado {
+  font-size: 15px;
+  color: var(--accent);
+}
+
+.summary {
+  margin: 0;
+  font-size: 15px;
+  color: var(--body);
+  line-height: 1.5;
+}
+
+.issues h4 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.issues ul {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.issues li {
+  font-size: 14px;
+  color: var(--body);
+  padding: 10px 12px;
+  background: var(--blue-tint);
+  border-radius: var(--radius-btn);
+}
+
+.issues li.error {
+  background: #fdeaea;
+  color: #8b2e2e;
+}
+
+.hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.result-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}

@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { PowerAppFormModalComponent } from '../../../power-apps/components/power-app-form-modal/power-app-form-modal.component';
+import { PowerAppSubmitResponse } from '../../../power-apps/models/power-app-submit.model';
 import { PipelineAction, PipelineStageId } from '../../models/pipeline-stage.model';
 import { CompanyPipeline } from '../../models/portfolio-company.model';
 import { PortfolioRepository, PORTFOLIO_REPOSITORY } from '../../models/portfolio.repository';
@@ -15,7 +17,13 @@ import { StageDetailPanelComponent } from '../stage-detail-panel/stage-detail-pa
 @Component({
   selector: 'app-company-pipeline-page',
   standalone: true,
-  imports: [CommonModule, RouterLink, PipelineStepperComponent, StageDetailPanelComponent],
+  imports: [
+    CommonModule,
+    RouterLink,
+    PipelineStepperComponent,
+    StageDetailPanelComponent,
+    PowerAppFormModalComponent,
+  ],
   templateUrl: './company-pipeline-page.component.html',
   styleUrls: ['./company-pipeline-page.component.css'],
 })
@@ -32,7 +40,9 @@ export class CompanyPipelinePageComponent implements OnInit {
   readonly feedback = signal<string | null>(null);
 
   readonly pendingAction = signal<PipelineAction | null>(null);
-  readonly showModal = signal(false);
+  readonly showConfirmModal = signal(false);
+  readonly showPowerAppModal = signal(false);
+  readonly lastRadicado = signal<string | null>(null);
 
   readonly selectedStage = computed(() => {
     const p = this.pipeline();
@@ -79,9 +89,8 @@ export class CompanyPipelinePageComponent implements OnInit {
   }
 
   onActionRequested(action: PipelineAction): void {
-    if (action.id === 'open_power_app') {
-      window.open('https://powerapps.microsoft.com', '_blank', 'noopener');
-      this.showFeedback('Power App abierta en nueva pestaña (mock).');
+    if (action.id === 'fill_power_app') {
+      this.showPowerAppModal.set(true);
       return;
     }
 
@@ -92,11 +101,43 @@ export class CompanyPipelinePageComponent implements OnInit {
 
     if (action.requiresConfirmation) {
       this.pendingAction.set(action);
-      this.showModal.set(true);
+      this.showConfirmModal.set(true);
       return;
     }
 
     this.runAction(action);
+  }
+
+  onPowerAppSubmitted(result: PowerAppSubmitResponse): void {
+    if (!result.valid) return;
+
+    this.lastRadicado.set(result.radicado);
+    const p = this.pipeline();
+    if (!p) return;
+
+    this.actionLoading.set(true);
+    this.repository.executeAction(p.id, 'power_app', 'power_app_approved').subscribe({
+      next: (actionResult) => {
+        if (actionResult.pipeline) {
+          this.pipeline.set(actionResult.pipeline);
+          this.selectedStageId.set(actionResult.pipeline.currentStageId);
+        }
+        this.showFeedback(
+          result.radicado
+            ? `Solicitud aprobada. Radicado ${result.radicado}.`
+            : actionResult.message,
+        );
+        this.actionLoading.set(false);
+      },
+      error: () => {
+        this.showFeedback(`Solicitud aprobada. Radicado ${result.radicado ?? '—'}.`);
+        this.actionLoading.set(false);
+      },
+    });
+  }
+
+  closePowerAppModal(): void {
+    this.showPowerAppModal.set(false);
   }
 
   confirmAction(): void {
@@ -104,11 +145,11 @@ export class CompanyPipelinePageComponent implements OnInit {
     if (action) {
       this.runAction(action);
     }
-    this.closeModal();
+    this.closeConfirmModal();
   }
 
-  closeModal(): void {
-    this.showModal.set(false);
+  closeConfirmModal(): void {
+    this.showConfirmModal.set(false);
     this.pendingAction.set(null);
   }
 
