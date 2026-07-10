@@ -344,13 +344,20 @@ export class CompanyCallsPanelComponent implements OnInit, OnChanges, OnDestroy 
 
   hasCallMetrics(call: CallDetail): boolean {
     if (isManualCall(call)) {
-      return false;
+      return true;
     }
     return (
       call.durationSeconds != null ||
       call.successEvaluation !== undefined ||
       !!call.endedReason
     );
+  }
+
+  qualificationLabel(call: CallDetail): string {
+    if (call.successEvaluation === undefined) {
+      return '—';
+    }
+    return isCallSuccess(call.successEvaluation) ? 'Calificado' : 'No calificado';
   }
 
   hasRecordingAvailable(call: CallDetail): boolean {

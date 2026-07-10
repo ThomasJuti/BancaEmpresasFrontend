@@ -61,6 +61,57 @@ export interface PowerAppSubmitResponse {
   submittedAt?: string;
 }
 
+export interface PowerAppSubmissionPayload {
+  leadId?: string;
+  campana?: string;
+  asesorId?: string;
+  segmento: string;
+  tipoIdentificacionEmpresa: 'NIT';
+  tipoIdentificacionTarjetahabiente: TipoIdentificacionTarjetahabiente;
+  numeroIdentificacionTarjetahabiente: string;
+  unidadNegocios: string;
+  tipoTarjetaNueva: string;
+  identificacionEmpresa: string;
+  nombreEmpresa: string;
+  nombreTarjetahabiente: string;
+  binProducto: string;
+  cargoDebitoAutomatico: string;
+  cupoTarjetaNueva: number;
+  cupoDisponibleCec?: number;
+  codigoOficinaCentroServicio: string;
+  ciudadPuntoEntrega: string;
+  direccionPuntoComercial: string;
+  puntoEntrega: PuntoEntrega;
+}
+
+export interface PowerAppSubmissionRecord {
+  id: string;
+  caseId: string;
+  leadId: string;
+  radicado: string | null;
+  decision: PowerAppDecision;
+  valid: boolean;
+  summary: string;
+  siguientePaso: string | null;
+  payload: PowerAppSubmissionPayload;
+  issues: ValidationIssue[];
+  attachmentNames: string[];
+  documentoOrigen?: 'RUES' | 'MANUAL';
+  ruesSolicitudId?: string;
+  submittedAt: string;
+}
+
+export interface PowerAppSubmissionByLeadResponse {
+  submission: PowerAppSubmissionRecord | null;
+}
+
+export interface StoredPowerAppSubmission {
+  response: PowerAppSubmitResponse;
+  payload?: PowerAppSubmissionPayload;
+  attachmentNames?: string[];
+  documentoOrigen?: 'RUES' | 'MANUAL';
+}
+
 export type PowerAppFormValue = PowerAppSubmitRequest;
 
 export const PREFILL_FIELD_KEYS = [

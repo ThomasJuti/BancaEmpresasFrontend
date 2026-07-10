@@ -3,7 +3,8 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FollowUpService } from '../../../../core/services/follow-up.service';
 import { PowerAppFormModalComponent } from '../../../power-apps/components/power-app-form-modal/power-app-form-modal.component';
-import { PowerAppSubmitResponse } from '../../../power-apps/models/power-app-submit.model';
+import { PowerAppSubmitResponse, StoredPowerAppSubmission } from '../../../power-apps/models/power-app-submit.model';
+import { PowerAppService } from '../../../power-apps/services/power-app.service';
 import { PowerAppSubmissionStore } from '../../../power-apps/services/power-app-submission.store';
 import { PipelineAction, PipelineStageId } from '../../models/pipeline-stage.model';
 import { CompanyPipeline } from '../../models/portfolio-company.model';
@@ -31,6 +32,7 @@ import { CallsChangedEvent } from '../company-calls-panel/company-calls-panel.co
 export class CompanyPipelinePageComponent implements OnInit {
   private readonly repository = inject<PortfolioRepository>(PORTFOLIO_REPOSITORY);
   private readonly submissionStore = inject(PowerAppSubmissionStore);
+  private readonly powerAppService = inject(PowerAppService);
   private readonly followUpService = inject(FollowUpService);
   private readonly route = inject(ActivatedRoute);
 
@@ -51,6 +53,7 @@ export class CompanyPipelinePageComponent implements OnInit {
   readonly expandedSubStepId = signal<string | null>(null);
   readonly callsRefreshKey = signal(0);
   readonly callsCount = signal(0);
+  readonly powerAppSubmission = signal<StoredPowerAppSubmission | null>(null);
 
   readonly linkedCallId = computed(() => {
     const p = this.pipeline();
@@ -115,6 +118,7 @@ export class CompanyPipelinePageComponent implements OnInit {
         }
         this.loading.set(false);
         this.preloadCallsHistory(restored);
+        this.loadPowerAppSubmission(restored);
       },
       error: () => {
         this.error.set('No se encontró la empresa solicitada.');
@@ -132,6 +136,9 @@ export class CompanyPipelinePageComponent implements OnInit {
     this.selectedStageId.set(stageId);
     this.expandedSubStepId.set(null);
     this.callsFocusAction.set(null);
+    if (stageId === 'power_app' && p) {
+      this.loadPowerAppSubmission(p);
+    }
   }
 
   onExpandedSubStepChange(subStepId: string | null): void {
@@ -151,8 +158,8 @@ export class CompanyPipelinePageComponent implements OnInit {
         return;
       }
 
-      const stored = this.submissionStore.get(p.id);
-      if (stored?.valid || p.powerAppSubmittedAt) {
+      const stored = this.submissionStore.getRecord(p.id);
+      if (stored?.response.valid || p.powerAppSubmittedAt) {
         this.powerAppReadOnly.set(true);
       } else {
         this.powerAppReadOnly.set(false);
@@ -193,6 +200,7 @@ export class CompanyPipelinePageComponent implements OnInit {
     this.submissionStore.save(p.id, result);
     this.powerAppReadOnly.set(true);
     this.lastRadicado.set(result.radicado);
+    this.powerAppSubmission.set(this.submissionStore.getRecord(p.id) ?? null);
 
     this.actionLoading.set(true);
     this.repository.invalidateCompanyCache(p.id);
@@ -430,16 +438,6 @@ export class CompanyPipelinePageComponent implements OnInit {
     });
   }
 
-  private preloadCallsHistory(pipeline: CompanyPipeline): void {
-    const nit = pipeline.clienteId ?? pipeline.nit;
-    this.repository.getCallsForCompany(nit).subscribe({
-      next: (calls) => {
-        this.callsCount.set(calls.length);
-        this.applyCallsExpansion(pipeline, calls.length);
-      },
-    });
-  }
-
   private applyCallsExpansion(pipeline: CompanyPipeline, historyCount: number): void {
     const query = this.route.snapshot.queryParamMap;
     const accion = query.get('accion');
@@ -467,6 +465,44 @@ export class CompanyPipelinePageComponent implements OnInit {
     if (etapa === 'calls' || historyCount > 0) {
       this.expandedSubStepId.set('contact');
     }
+  }
+
+  private preloadCallsHistory(pipeline: CompanyPipeline): void {
+    const nit = pipeline.clienteId ?? pipeline.nit;
+    this.repository.getCallsForCompany(nit).subscribe({
+      next: (calls) => {
+        this.callsCount.set(calls.length);
+        this.applyCallsExpansion(pipeline, calls.length);
+      },
+    });
+  }
+
+  private loadPowerAppSubmission(pipeline: CompanyPipeline): void {
+    const nit = pipeline.clienteId ?? pipeline.nit;
+    const cached = this.submissionStore.getRecord(pipeline.id);
+    if (cached?.response.valid) {
+      this.powerAppSubmission.set(cached);
+    }
+
+    if (!pipeline.powerAppSubmittedAt && !cached?.response.valid) {
+      this.powerAppSubmission.set(null);
+      return;
+    }
+
+    this.powerAppService.getSubmissionByLead(nit).subscribe({
+      next: ({ submission }) => {
+        if (submission) {
+          this.submissionStore.saveFromApiRecord(pipeline.id, submission);
+          this.powerAppSubmission.set(this.submissionStore.getRecord(pipeline.id) ?? null);
+          return;
+        }
+        if (cached?.response.valid) {
+          this.powerAppSubmission.set(cached);
+          return;
+        }
+        this.powerAppSubmission.set(null);
+      },
+    });
   }
 
   badgeStatus(status: string): string {

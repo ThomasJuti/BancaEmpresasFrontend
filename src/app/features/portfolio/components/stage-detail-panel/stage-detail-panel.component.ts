@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { PowerAppSubmissionHistoryComponent } from '../../../power-apps/components/power-app-submission-history/power-app-submission-history.component';
+import { StoredPowerAppSubmission } from '../../../power-apps/models/power-app-submit.model';
 import { PipelineAction, PipelineStage } from '../../models/pipeline-stage.model';
 import { CompanyPipeline } from '../../models/portfolio-company.model';
 import { resolveStageActions } from '../../utils/pipeline-builder';
@@ -10,7 +12,7 @@ import { CompanyCallsPanelComponent, CallsChangedEvent } from '../company-calls-
 @Component({
   selector: 'app-stage-detail-panel',
   standalone: true,
-  imports: [CommonModule, CompanyCallsPanelComponent],
+  imports: [CommonModule, CompanyCallsPanelComponent, PowerAppSubmissionHistoryComponent],
   templateUrl: './stage-detail-panel.component.html',
   styleUrls: ['./stage-detail-panel.component.css'],
 })
@@ -23,6 +25,7 @@ export class StageDetailPanelComponent {
   @Input() selectedCallId: string | null = null;
   @Input() callsRefreshKey = 0;
   @Input() callsCount = 0;
+  @Input() powerAppSubmission: StoredPowerAppSubmission | null = null;
   @Output() actionRequested = new EventEmitter<PipelineAction>();
   @Output() expandedSubStepChange = new EventEmitter<string | null>();
   @Output() callsChanged = new EventEmitter<CallsChangedEvent | void>();
@@ -35,6 +38,10 @@ export class StageDetailPanelComponent {
 
   showPowerAppGateMessage(): boolean {
     return this.stage.id === 'power_app' && !canOpenPowerApp(this.pipeline);
+  }
+
+  showPowerAppHistory(): boolean {
+    return this.stage.id === 'power_app' && !!this.powerAppSubmission?.response.valid;
   }
 
   isCallsStage(): boolean {

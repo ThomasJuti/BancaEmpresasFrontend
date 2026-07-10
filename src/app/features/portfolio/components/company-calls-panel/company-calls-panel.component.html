@@ -221,64 +221,31 @@
       <div class="pending-card">
         <p>{{ pendingCallMessage(call) }}</p>
       </div>
-      } @else if (isManual(call)) {
-      <section class="manual-registration-panel">
-        <div class="manual-registration-head">
-          <span class="origin-tag manual lg">Registro del asesor</span>
-          <span class="meta-chip muted">{{ call.createdAt | date: 'short' }}</span>
-        </div>
-
-        <div class="manual-contact-card">
-          <strong>{{ contactTitle(call, representanteLegalNombre) }}</strong>
-          @if (call.phoneNumber) {
-          <span class="muted">{{ call.phoneNumber }}</span>
-          }
-        </div>
-
-        <div class="manual-protocol-grid protocol-grid">
-          @if (identityVerified(call) !== null) {
-          <div class="protocol-cell">
-            <span>Identidad verificada</span>
-            <span class="pill" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
-              {{ identityVerified(call) ? 'Sí' : 'No' }}
-            </span>
-          </div>
-          }
-          @if (clientInterested(call) !== null) {
-          <div class="protocol-cell">
-            <span>Cliente interesado</span>
-            <span class="pill" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
-              {{ clientInterested(call) ? 'Sí' : 'No' }}
-            </span>
-          </div>
-          }
-          @if (noInterestReason(call); as reason) {
-          <div class="protocol-cell wide">
-            <span>Motivo de no interés</span>
-            <span class="protocol-value emphasis">{{ reason }}</span>
-          </div>
-          }
-        </div>
-
-        @if (call.durationSeconds != null) {
-        <div class="manual-duration">
-          <span class="metric-label">Duración registrada</span>
-          <span class="metric-value">{{ call.durationSeconds }}<small> seg</small></span>
-        </div>
-        }
-
-        @if (call.summary) {
-        <div class="manual-notes-block">
-          <h6>Notas del asesor</h6>
-          <p class="summary-text">{{ call.summary }}</p>
-        </div>
-        }
-      </section>
       } @else {
       <div class="call-dashboard-grid">
         <div class="call-dashboard-primary">
           @if (hasCallMetrics(call)) {
           <div class="metric-row">
+            @if (isManual(call)) {
+            <div class="metric-cell">
+              <span class="metric-label">Contacto</span>
+              <span class="metric-value compact">{{ contactTitle(call, representanteLegalNombre) }}</span>
+            </div>
+            <div class="metric-cell">
+              <span class="metric-label">Duración</span>
+              <span class="metric-value">{{ call.durationSeconds ?? '—' }}<small>seg</small></span>
+            </div>
+            <div class="metric-cell">
+              <span class="metric-label">Resultado</span>
+              <span
+                class="metric-value"
+                [class.ok]="isSuccess(call.successEvaluation)"
+                [class.no]="call.successEvaluation !== undefined && !isSuccess(call.successEvaluation)"
+              >
+                {{ qualificationLabel(call) }}
+              </span>
+            </div>
+            } @else {
             <div class="metric-cell">
               <span class="metric-label">Duración</span>
               <span class="metric-value">{{ call.durationSeconds ?? '—' }}<small>seg</small></span>
@@ -297,6 +264,7 @@
               <span class="metric-label">Motivo de fin</span>
               <span class="metric-value compact">{{ endedLabel(call.endedReason) }}</span>
             </div>
+            }
           </div>
           }
 
@@ -352,43 +320,50 @@
 
           @if (call.summary) {
           <section class="dash-panel">
-            <h6>Resumen</h6>
+            <h6>{{ isManual(call) ? 'Notas del asesor' : 'Resumen' }}</h6>
             <p class="summary-text">{{ call.summary }}</p>
           </section>
           }
         </div>
 
         <div class="call-dashboard-media">
-          @if (hasRecordingAvailable(call)) {
+          @if (isManual(call)) {
           <section class="dash-panel">
-            <h6>Grabación</h6>
-            <audio class="player" controls [src]="recordingUrl(call)"></audio>
+            <h6>Grabación y transcripción</h6>
+            <p class="muted">Sin grabación ni transcripción.</p>
           </section>
-          } @else if (!isManual(call) && !isPendingCall(call)) {
-          <section class="dash-panel">
-            <h6>Grabación</h6>
-            <p class="muted">Sin grabación disponible.</p>
-          </section>
-          }
+          } @else {
+            @if (hasRecordingAvailable(call)) {
+            <section class="dash-panel">
+              <h6>Grabación</h6>
+              <audio class="player" controls [src]="recordingUrl(call)"></audio>
+            </section>
+            } @else if (!isPendingCall(call)) {
+            <section class="dash-panel">
+              <h6>Grabación</h6>
+              <p class="muted">Sin grabación disponible.</p>
+            </section>
+            }
 
-          @if (!isManual(call) && call.transcript && call.transcript.length > 0) {
-          <section class="dash-panel transcript-panel">
-            <h6>Transcripción</h6>
-            <div class="chat">
-              @for (msg of call.transcript; track $index) {
-                @if (msg.role !== 'system') {
-                <div
-                  class="msg"
-                  [class.assistant]="msg.role === 'bot' || msg.role === 'agent'"
-                  [class.user]="msg.role === 'user'"
-                >
-                  <span class="who">{{ transcriptRole(msg.role) }}</span>
-                  <p>{{ msg.message }}</p>
-                </div>
+            @if (call.transcript && call.transcript.length > 0) {
+            <section class="dash-panel transcript-panel">
+              <h6>Transcripción</h6>
+              <div class="chat">
+                @for (msg of call.transcript; track $index) {
+                  @if (msg.role !== 'system') {
+                  <div
+                    class="msg"
+                    [class.assistant]="msg.role === 'bot' || msg.role === 'agent'"
+                    [class.user]="msg.role === 'user'"
+                  >
+                    <span class="who">{{ transcriptRole(msg.role) }}</span>
+                    <p>{{ msg.message }}</p>
+                  </div>
+                  }
                 }
-              }
-            </div>
-          </section>
+              </div>
+            </section>
+            }
           }
         </div>
       </div>
@@ -452,174 +427,156 @@
           </div>
         </div>
 
-        @if (isManual(call)) {
-        <section class="manual-registration-panel detail-manual">
-          <div class="manual-registration-head">
-            <span class="origin-tag manual lg">Registro del asesor</span>
-            <span class="meta-chip muted">{{ call.createdAt | date: 'short' }}</span>
-          </div>
-
-          <div class="manual-contact-card">
-            <strong>{{ contactTitle(call, representanteLegalNombre) }}</strong>
-            @if (call.phoneNumber) {
-            <span class="muted">{{ call.phoneNumber }}</span>
-            }
-          </div>
-
-          <div class="manual-protocol-grid protocol-grid">
-            @if (identityVerified(call) !== null) {
-            <div class="protocol-cell">
-              <span>Identidad verificada</span>
-              <span class="pill" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
-                {{ identityVerified(call) ? 'Sí' : 'No' }}
-              </span>
-            </div>
-            }
-            @if (clientInterested(call) !== null) {
-            <div class="protocol-cell">
-              <span>Cliente interesado</span>
-              <span class="pill" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
-                {{ clientInterested(call) ? 'Sí' : 'No' }}
-              </span>
-            </div>
-            }
-            @if (noInterestReason(call); as reason) {
-            <div class="protocol-cell wide">
-              <span>Motivo de no interés</span>
-              <span class="protocol-value emphasis">{{ reason }}</span>
-            </div>
-            }
-          </div>
-
-          @if (call.durationSeconds != null) {
-          <div class="manual-duration">
-            <span class="metric-label">Duración registrada</span>
-            <span class="metric-value">{{ call.durationSeconds }}<small> seg</small></span>
-          </div>
-          }
-
-          @if (call.summary) {
-          <div class="manual-notes-block">
-            <h5>Notas del asesor</h5>
-            <p>{{ call.summary }}</p>
-          </div>
-          }
-        </section>
+        @if (isPendingCall(call) || isCallProcessing(call)) {
+        <div class="pending-card">
+          <p>{{ pendingCallMessage(call) }}</p>
+        </div>
         } @else {
-        <div class="stats">
-          <div class="kpi">
-            <span class="kpi-value">{{ call.durationSeconds ?? '—' }}</span>
-            <span class="kpi-caption">Duración (seg)</span>
-          </div>
-          <div class="kpi">
-            <span
-              class="kpi-value"
-              [class.ok]="isSuccess(call.successEvaluation)"
-              [class.no]="call.successEvaluation !== undefined && !isSuccess(call.successEvaluation)"
-            >
-              {{ call.successEvaluation === undefined ? '—' : (isSuccess(call.successEvaluation) ? 'Éxito' : 'No exitosa') }}
-            </span>
-            <span class="kpi-caption">Resultado</span>
-          </div>
-          <div class="kpi">
-            <span class="kpi-value small">{{ endedLabel(call.endedReason) }}</span>
-            <span class="kpi-caption">Motivo de fin</span>
-          </div>
-        </div>
-
-        @if (identityVerified(call) !== null || clientInterested(call) !== null || noInterestReason(call)) {
-        <div class="subcard">
-          <h5>Resultado del contacto</h5>
-          <div class="result">
-            @if (identityVerified(call) !== null) {
-            <div class="result-item">
-              <span>Identidad verificada</span>
-              <span class="pill" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
-                {{ identityVerified(call) ? 'Sí' : 'No' }}
-              </span>
-            </div>
-            }
-            @if (clientInterested(call) !== null) {
-            <div class="result-item">
-              <span>Cliente interesado</span>
-              <span class="pill" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
-                {{ clientInterested(call) ? 'Sí' : 'No' }}
-              </span>
-            </div>
-            }
-            @if (noInterestReason(call); as reason) {
-            <div class="result-item wide">
-              <span>Motivo de no interés</span>
-              <span class="result-value">{{ reason }}</span>
-            </div>
-            }
-          </div>
-        </div>
-        }
-
-        @if (outputEntries(call).length > 0) {
-        <div class="subcard">
-          <h5>Datos recopilados</h5>
-          <div class="vars">
-            @for (entry of outputEntries(call); track entry.label) {
-            <div class="var">
-              <span class="var-key">{{ entry.label }}</span>
-              <span class="var-val">{{ entry.value }}</span>
-            </div>
-            }
-          </div>
-        </div>
-        }
-
-        @if (analysisEntries(call).length > 0) {
-        <div class="subcard">
-          <h5>Análisis</h5>
-          <div class="vars">
-            @for (entry of analysisEntries(call); track entry.label) {
-            <div class="var">
-              <span class="var-key">{{ entry.label }}</span>
-              <span class="var-val">{{ entry.value }}</span>
-            </div>
-            }
-          </div>
-        </div>
-        }
-
-        @if (call.summary) {
-        <div class="subcard">
-          <h5>Resumen</h5>
-          <p>{{ call.summary }}</p>
-        </div>
-        }
-
-        <div class="subcard">
-          <h5>Grabación</h5>
-          @if (hasRecordingAvailable(call)) {
-          <audio class="player" controls [src]="recordingUrl(call)"></audio>
-          } @else {
-          <p class="muted">Sin grabación disponible.</p>
-          }
-        </div>
-
-        @if (call.transcript && call.transcript.length > 0) {
-        <div class="subcard">
-          <h5>Transcripción</h5>
-          <div class="chat">
-            @for (msg of call.transcript; track $index) {
-              @if (msg.role !== 'system') {
-              <div
-                class="msg"
-                [class.assistant]="msg.role === 'bot' || msg.role === 'agent'"
-                [class.user]="msg.role === 'user'"
-              >
-                <span class="who">{{ transcriptRole(msg.role) }}</span>
-                <p>{{ msg.message }}</p>
+        <div class="call-dashboard-grid detail-dashboard">
+          <div class="call-dashboard-primary">
+            @if (hasCallMetrics(call)) {
+            <div class="metric-row">
+              @if (isManual(call)) {
+              <div class="metric-cell">
+                <span class="metric-label">Contacto</span>
+                <span class="metric-value compact">{{ contactTitle(call, representanteLegalNombre) }}</span>
               </div>
+              <div class="metric-cell">
+                <span class="metric-label">Duración</span>
+                <span class="metric-value">{{ call.durationSeconds ?? '—' }}<small>seg</small></span>
+              </div>
+              <div class="metric-cell">
+                <span class="metric-label">Resultado</span>
+                <span
+                  class="metric-value"
+                  [class.ok]="isSuccess(call.successEvaluation)"
+                  [class.no]="call.successEvaluation !== undefined && !isSuccess(call.successEvaluation)"
+                >
+                  {{ qualificationLabel(call) }}
+                </span>
+              </div>
+              } @else {
+              <div class="metric-cell">
+                <span class="metric-label">Duración</span>
+                <span class="metric-value">{{ call.durationSeconds ?? '—' }}<small>seg</small></span>
+              </div>
+              <div class="metric-cell">
+                <span class="metric-label">Resultado</span>
+                <span
+                  class="metric-value"
+                  [class.ok]="isSuccess(call.successEvaluation)"
+                  [class.no]="call.successEvaluation !== undefined && !isSuccess(call.successEvaluation)"
+                >
+                  {{ call.successEvaluation === undefined ? '—' : (isSuccess(call.successEvaluation) ? 'Éxito' : 'No exitosa') }}
+                </span>
+              </div>
+              <div class="metric-cell">
+                <span class="metric-label">Motivo de fin</span>
+                <span class="metric-value compact">{{ endedLabel(call.endedReason) }}</span>
+              </div>
+              }
+            </div>
+            }
+
+            @if (identityVerified(call) !== null || clientInterested(call) !== null || noInterestReason(call)) {
+            <section class="dash-panel">
+              <h6>Protocolo</h6>
+              <div class="protocol-grid">
+                @if (identityVerified(call) !== null) {
+                <div class="protocol-cell">
+                  <span>Identidad</span>
+                  <span class="pill" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
+                    {{ identityVerified(call) ? 'Sí' : 'No' }}
+                  </span>
+                </div>
+                }
+                @if (clientInterested(call) !== null) {
+                <div class="protocol-cell">
+                  <span>Interés</span>
+                  <span class="pill" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
+                    {{ clientInterested(call) ? 'Sí' : 'No' }}
+                  </span>
+                </div>
+                }
+                @if (noInterestReason(call); as reason) {
+                <div class="protocol-cell wide">
+                  <span>Motivo de no interés</span>
+                  <span class="protocol-value">{{ reason }}</span>
+                </div>
+                }
+              </div>
+            </section>
+            }
+
+            @if (outputEntries(call).length > 0 || analysisEntries(call).length > 0) {
+            <section class="dash-panel">
+              <h6>Datos</h6>
+              <div class="field-grid">
+                @for (entry of outputEntries(call); track entry.label) {
+                <div class="field-cell">
+                  <span class="field-label">{{ entry.label }}</span>
+                  <span class="field-value">{{ entry.value }}</span>
+                </div>
+                }
+                @for (entry of analysisEntries(call); track entry.label) {
+                <div class="field-cell">
+                  <span class="field-label">{{ entry.label }}</span>
+                  <span class="field-value">{{ entry.value }}</span>
+                </div>
+                }
+              </div>
+            </section>
+            }
+
+            @if (call.summary) {
+            <section class="dash-panel">
+              <h6>{{ isManual(call) ? 'Notas del asesor' : 'Resumen' }}</h6>
+              <p class="summary-text">{{ call.summary }}</p>
+            </section>
+            }
+          </div>
+
+          <div class="call-dashboard-media">
+            @if (isManual(call)) {
+            <section class="dash-panel">
+              <h6>Grabación y transcripción</h6>
+              <p class="muted">Sin grabación ni transcripción.</p>
+            </section>
+            } @else {
+              @if (hasRecordingAvailable(call)) {
+              <section class="dash-panel">
+                <h6>Grabación</h6>
+                <audio class="player" controls [src]="recordingUrl(call)"></audio>
+              </section>
+              } @else {
+              <section class="dash-panel">
+                <h6>Grabación</h6>
+                <p class="muted">Sin grabación disponible.</p>
+              </section>
+              }
+
+              @if (call.transcript && call.transcript.length > 0) {
+              <section class="dash-panel transcript-panel">
+                <h6>Transcripción</h6>
+                <div class="chat">
+                  @for (msg of call.transcript; track $index) {
+                    @if (msg.role !== 'system') {
+                    <div
+                      class="msg"
+                      [class.assistant]="msg.role === 'bot' || msg.role === 'agent'"
+                      [class.user]="msg.role === 'user'"
+                    >
+                      <span class="who">{{ transcriptRole(msg.role) }}</span>
+                      <p>{{ msg.message }}</p>
+                    </div>
+                    }
+                  }
+                </div>
+              </section>
               }
             }
           </div>
         </div>
-        }
         }
         } @else {
         <p class="empty-detail">Selecciona un contacto del historial.</p>

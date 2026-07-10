@@ -113,6 +113,19 @@
   </div>
   }
 
+  @if (showPowerAppHistory() && powerAppSubmission; as stored) {
+  <div class="power-app-history-block">
+    <h4 class="history-block-title">Solicitud enviada</h4>
+    <app-power-app-submission-history
+      [result]="stored.response"
+      [payload]="stored.payload"
+      [attachmentNames]="stored.attachmentNames ?? []"
+      [documentoOrigen]="stored.documentoOrigen"
+      [compact]="true"
+    />
+  </div>
+  }
+
   @if (visibleActions().length > 0) {
   <div class="actions">
     @for (action of visibleActions(); track action.id) {

@@ -1,0 +1,60 @@
+<section class="submission-history" [class.compact]="compact">
+  <div class="history-header">
+    @if (result.radicado) {
+    <div class="radicado-card">
+      <span class="radicado-label">Número de radicado GOPTC</span>
+      <strong class="radicado-value">{{ result.radicado }}</strong>
+      @if (result.submittedAt) {
+      <span class="radicado-date">Registrado el {{ result.submittedAt | date: 'medium' }}</span>
+      }
+    </div>
+    }
+
+    <div class="history-meta">
+      <span class="badge lg" [attr.data-status]="decisionBadge(result.decision)">{{ result.decision }}</span>
+      <p class="summary">{{ result.summary }}</p>
+      @if (result.siguientePaso) {
+      <p class="next-step muted">{{ result.siguientePaso }}</p>
+      }
+    </div>
+  </div>
+
+  @if (hasPayload()) {
+  <div class="history-sections">
+    @for (section of sections; track section) {
+      @if (section !== 'documentos' || hasAttachments() || documentoOrigenLabel()) {
+      <section class="dash-panel">
+        <h6>{{ sectionTitle(section) }}</h6>
+        @if (section === 'documentos') {
+        <div class="field-grid">
+          @if (documentoOrigenLabel(); as origen) {
+          <div class="field-cell">
+            <span class="field-label">Origen documento</span>
+            <span class="field-value">{{ origen }}</span>
+          </div>
+          }
+          @for (name of attachmentNames; track name) {
+          <div class="field-cell wide">
+            <span class="field-label">Adjunto</span>
+            <span class="field-value">{{ name }}</span>
+          </div>
+          }
+        </div>
+        } @else {
+        <div class="field-grid">
+          @for (entry of fieldsForSection(section); track entry.key) {
+          <div class="field-cell" [class.wide]="entry.key === 'direccionPuntoComercial' || entry.key === 'nombreEmpresa'">
+            <span class="field-label">{{ entry.label }}</span>
+            <span class="field-value">{{ fieldValue(entry) }}</span>
+          </div>
+          }
+        </div>
+        }
+      </section>
+      }
+    }
+  </div>
+  } @else {
+  <p class="muted empty-state">No hay detalle de campos diligenciados disponible.</p>
+  }
+</section>

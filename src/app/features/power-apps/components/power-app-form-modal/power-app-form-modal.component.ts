@@ -6,6 +6,7 @@ import { forkJoin, of } from 'rxjs';
 import { PowerAppService } from '../../services/power-app.service';
 import { PowerAppSubmissionStore } from '../../services/power-app-submission.store';
 import {
+  PowerAppSubmissionPayload,
   PowerAppSubmitResponse,
   PuntoEntrega,
   TipoIdentificacionTarjetahabiente,
@@ -26,6 +27,7 @@ import {
 } from '../../utils/power-app-client-validator';
 import { normalizeIdentification } from '../../utils/colombian-id.util';
 import { PowerAppResultPanelComponent } from '../power-app-result-panel/power-app-result-panel.component';
+import { PowerAppSubmissionHistoryComponent } from '../power-app-submission-history/power-app-submission-history.component';
 import { RuesComparisonPanelComponent } from '../rues-comparison-panel/rues-comparison-panel.component';
 import {
   RuesConsultarResponse,
@@ -46,7 +48,13 @@ const ALLOWED_EXTENSION = 'pdf';
 @Component({
   selector: 'app-power-app-form-modal',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, PowerAppResultPanelComponent, RuesComparisonPanelComponent],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    PowerAppResultPanelComponent,
+    PowerAppSubmissionHistoryComponent,
+    RuesComparisonPanelComponent,
+  ],
   templateUrl: './power-app-form-modal.component.html',
   styleUrls: ['./power-app-form-modal.component.css'],
 })
@@ -89,6 +97,9 @@ export class PowerAppFormModalComponent implements OnChanges, OnDestroy {
   readonly pdfPreviewOpen = signal(false);
   readonly pdfPreviewTitle = signal('');
   readonly pdfPreviewSafeUrl = signal<SafeResourceUrl | null>(null);
+  readonly historyPayload = signal<PowerAppSubmissionPayload | undefined>(undefined);
+  readonly historyAttachments = signal<string[]>([]);
+  readonly historyDocumentoOrigen = signal<'RUES' | 'MANUAL' | undefined>(undefined);
   private pdfPreviewSource: PdfPreviewSource | null = null;
 
   readonly docTypes: TipoIdentificacionTarjetahabiente[] = ['CC', 'CE', 'PA', 'TI'];
@@ -130,13 +141,20 @@ export class PowerAppFormModalComponent implements OnChanges, OnDestroy {
       return;
     }
 
-    const stored = this.submissionStore.get(this.companyId);
-    if (this.readOnly && (this.persistedSubmittedAt || stored?.valid)) {
-      this.result.set(stored ?? this.buildPersistedResult());
+    const stored = this.submissionStore.getRecord(this.companyId);
+    if (this.readOnly && (this.persistedSubmittedAt || stored?.response.valid)) {
+      this.result.set(stored?.response ?? this.buildPersistedResult());
+      this.historyPayload.set(stored?.payload);
+      this.historyAttachments.set(stored?.attachmentNames ?? []);
+      this.historyDocumentoOrigen.set(stored?.documentoOrigen);
       this.loading.set(false);
       this.loadError.set(null);
       this.submitError.set(null);
       this.fieldIssues.set([]);
+
+      if (!stored?.payload) {
+        this.loadSubmissionFromApi();
+      }
       return;
     }
 
@@ -411,7 +429,20 @@ export class PowerAppFormModalComponent implements OnChanges, OnDestroy {
         this.result.set(res);
         this.submitting.set(false);
         if (res.valid) {
-          this.submissionStore.save(this.companyId, res);
+          this.submissionStore.save(this.companyId, res, {
+            payload: this.buildSubmissionPayload({
+              ...payload,
+              tipoTarjetaNueva: 'LATAM BUSINESS',
+            }),
+            attachmentNames: submitPayload.archivosAdjuntos,
+            documentoOrigen: submitPayload.documentoOrigen,
+          });
+          this.historyPayload.set(this.buildSubmissionPayload({
+            ...payload,
+            tipoTarjetaNueva: 'LATAM BUSINESS',
+          }));
+          this.historyAttachments.set(submitPayload.archivosAdjuntos);
+          this.historyDocumentoOrigen.set(submitPayload.documentoOrigen);
         }
         this.submitted.emit(res);
       },
@@ -490,6 +521,72 @@ export class PowerAppFormModalComponent implements OnChanges, OnDestroy {
       siguientePaso:
         'Operaciones procesará realce, fabricación y armado de carpeta. Operaciones entregará la carpeta al gerente de relaciones.',
       submittedAt: this.persistedSubmittedAt,
+    };
+  }
+
+  private loadSubmissionFromApi(): void {
+    this.powerAppService.getSubmissionByLead(this.companyNit).subscribe({
+      next: ({ submission }) => {
+        if (!submission) {
+          return;
+        }
+        this.submissionStore.saveFromApiRecord(this.companyId, submission);
+        this.result.set({
+          caseId: submission.caseId,
+          decision: submission.decision,
+          valid: submission.valid,
+          radicado: submission.radicado,
+          issues: submission.issues,
+          summary: submission.summary,
+          siguientePaso: submission.siguientePaso,
+          submittedAt: submission.submittedAt,
+        });
+        this.historyPayload.set(submission.payload);
+        this.historyAttachments.set(submission.attachmentNames);
+        this.historyDocumentoOrigen.set(submission.documentoOrigen);
+      },
+    });
+  }
+
+  private buildSubmissionPayload(payload: {
+    leadId?: string;
+    segmento: string;
+    tipoIdentificacionEmpresa: 'NIT';
+    tipoIdentificacionTarjetahabiente: TipoIdentificacionTarjetahabiente;
+    numeroIdentificacionTarjetahabiente: string;
+    unidadNegocios: string;
+    tipoTarjetaNueva: string;
+    identificacionEmpresa: string;
+    nombreEmpresa: string;
+    nombreTarjetahabiente: string;
+    binProducto: string;
+    cargoDebitoAutomatico: string;
+    cupoTarjetaNueva: number;
+    cupoDisponibleCec?: number | null;
+    codigoOficinaCentroServicio: string;
+    ciudadPuntoEntrega: string;
+    direccionPuntoComercial: string;
+    puntoEntrega: PuntoEntrega;
+  }): PowerAppSubmissionPayload {
+    return {
+      leadId: payload.leadId || undefined,
+      segmento: payload.segmento,
+      tipoIdentificacionEmpresa: payload.tipoIdentificacionEmpresa,
+      tipoIdentificacionTarjetahabiente: payload.tipoIdentificacionTarjetahabiente,
+      numeroIdentificacionTarjetahabiente: payload.numeroIdentificacionTarjetahabiente,
+      unidadNegocios: payload.unidadNegocios,
+      tipoTarjetaNueva: payload.tipoTarjetaNueva,
+      identificacionEmpresa: payload.identificacionEmpresa,
+      nombreEmpresa: payload.nombreEmpresa,
+      nombreTarjetahabiente: payload.nombreTarjetahabiente,
+      binProducto: payload.binProducto,
+      cargoDebitoAutomatico: payload.cargoDebitoAutomatico,
+      cupoTarjetaNueva: Number(payload.cupoTarjetaNueva),
+      cupoDisponibleCec: payload.cupoDisponibleCec ? Number(payload.cupoDisponibleCec) : undefined,
+      codigoOficinaCentroServicio: payload.codigoOficinaCentroServicio,
+      ciudadPuntoEntrega: payload.ciudadPuntoEntrega,
+      direccionPuntoComercial: payload.direccionPuntoComercial,
+      puntoEntrega: payload.puntoEntrega,
     };
   }
 

@@ -24,6 +24,14 @@
         (retry)="retryForm()"
         (close)="close()"
       />
+      @if (historyPayload() || historyAttachments().length > 0) {
+      <app-power-app-submission-history
+        [result]="res"
+        [payload]="historyPayload()"
+        [attachmentNames]="historyAttachments()"
+        [documentoOrigen]="historyDocumentoOrigen()"
+      />
+      }
       } @else {
     @if (loadError()) {
     <div class="alert-banner warning">{{ loadError() }}</div>

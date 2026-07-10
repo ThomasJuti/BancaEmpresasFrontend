@@ -4,7 +4,11 @@ import { catchError, map, Observable, of, throwError } from 'rxjs';
 import { FILE_MATCHING_API, POWER_APPS_API, SALES_CALLS_API } from '../../../core/config/api.config';
 import { ClienteFinal, ClienteFinalByIdResponse, ClientesFinalesResponse } from '../models/cliente-final.model';
 import { PowerAppHandoffPrefill } from '../models/power-app-prefill.model';
-import { PowerAppSubmitRequest, PowerAppSubmitResponse } from '../models/power-app-submit.model';
+import {
+  PowerAppSubmissionByLeadResponse,
+  PowerAppSubmitRequest,
+  PowerAppSubmitResponse,
+} from '../models/power-app-submit.model';
 import { RuesConsultarResponse, RuesFormSnapshot } from '../models/rues-consultation.model';
 import { normalizeIdentification } from '../utils/colombian-id.util';
 
@@ -68,5 +72,18 @@ export class PowerAppService {
         return throwError(() => err);
       }),
     );
+  }
+
+  getSubmissionByLead(leadId: string): Observable<PowerAppSubmissionByLeadResponse> {
+    const normalized = leadId.trim();
+    if (!normalized) {
+      return of({ submission: null });
+    }
+
+    return this.http
+      .get<PowerAppSubmissionByLeadResponse>(
+        `${POWER_APPS_API}/submissions/by-lead/${encodeURIComponent(normalized)}`,
+      )
+      .pipe(catchError(() => of({ submission: null })));
   }
 }
