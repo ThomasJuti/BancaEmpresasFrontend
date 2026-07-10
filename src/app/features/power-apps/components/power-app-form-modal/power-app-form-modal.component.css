@@ -200,6 +200,255 @@ select.has-error {
   box-shadow: 0 0 0 1px rgba(198, 40, 40, 0.15);
 }
 
+.rues-actions {
+  margin-bottom: 16px;
+}
+
+.docs-panel {
+  gap: 16px;
+}
+
+.docs-rues-block,
+.docs-manual-block {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  background: var(--surface);
+}
+
+.docs-rues-block {
+  background: linear-gradient(180deg, #f7faff 0%, var(--surface) 100%);
+  border-color: #d5e3f7;
+}
+
+.docs-rues-copy h5,
+.docs-manual-head h5 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--heading);
+}
+
+.docs-rues-copy p,
+.docs-manual-head p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--body);
+}
+
+.docs-rues-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.docs-nit {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid #c5d9f5;
+}
+
+.btn-rues {
+  flex-shrink: 0;
+  padding: 9px 16px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1.5px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-rues:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.btn-rues:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.docs-unavailable {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #7a8799;
+}
+
+.docs-error {
+  margin: 14px 0 0;
+  padding: 9px 11px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #c62828;
+  background: #fdecea;
+  border: 1px solid #f5c6c6;
+}
+
+.docs-sep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin: 20px 0;
+}
+
+.docs-sep::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--divider);
+}
+
+.docs-sep span {
+  position: relative;
+  z-index: 1;
+  padding: 0 10px;
+  background: var(--surface);
+  font-size: 12px;
+  font-weight: 600;
+  color: #9aa5b4;
+  text-transform: lowercase;
+}
+
+.docs-manual-head {
+  margin-bottom: 12px;
+}
+
+.docs-warn {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #8a6100;
+}
+
+.docs-upload {
+  min-height: 132px;
+  padding: 18px;
+}
+
+.docs-upload .upload-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.docs-upload .upload-title {
+  font-size: 14px;
+}
+
+.attachment-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.attachment-action {
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.attachment-action:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.pdf-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.pdf-preview-dialog {
+  width: min(920px, 100%);
+  height: min(82vh, 760px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 24px 48px rgba(0, 47, 135, 0.2);
+}
+
+.pdf-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: #f7faff;
+  flex-shrink: 0;
+}
+
+.pdf-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.pdf-preview-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.pdf-preview-body {
+  flex: 1;
+  min-height: 0;
+  background: #e9eef5;
+}
+
+.pdf-preview-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 480px;
+  border: none;
+  background: #fff;
+}
+
+.ack-checkbox {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid #e8eef7;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 @media (max-width: 640px) {
   .modal-header,
   .tabs,
@@ -214,5 +463,14 @@ select.has-error {
 
   .tab-panel {
     min-height: auto;
+  }
+
+  .docs-rues-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-rues {
+    width: 100%;
   }
 }

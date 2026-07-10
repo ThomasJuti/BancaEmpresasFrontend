@@ -1,6 +1,6 @@
 export const environment = {
   production: false,
-  apiBaseUrl: 'https://bebackend.vercel.app/api',
+  apiBaseUrl: 'http://localhost:3000/api',
   supabase: {
     // URL pública del proyecto y clave publishable (anon). La clave publishable
     // está diseñada para exponerse en el cliente; la seguridad real la impone

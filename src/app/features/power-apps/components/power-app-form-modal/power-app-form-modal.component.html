@@ -132,15 +132,63 @@
       }
 
       @if (activeTab() === 'adjuntos') {
-      <section class="tab-panel">
-        <div class="upload-section">
-          <label class="upload-label" for="power-app-files">Certificado de Cámara de Comercio</label>
-          <p class="upload-hint">
-            Adjunte un único archivo PDF con el certificado de Cámara de Comercio vigente. Si carga otro PDF, reemplazará el actual.
-          </p>
+      <section class="tab-panel docs-panel">
+        <div class="docs-rues-block">
+          <div class="docs-rues-copy">
+            <h5>Cámara de Comercio (RUES)</h5>
+            <p>Valide matrícula y representantes legales con el NIT de la empresa.</p>
+          </div>
+
+          @if (ruesEnabled()) {
+          <div class="docs-rues-row">
+            <span class="docs-nit">NIT {{ ruesNitLabel() }}</span>
+            <button
+              type="button"
+              class="btn-rues"
+              [disabled]="ruesConsulting()"
+              (click)="consultarRues()"
+            >
+              {{ ruesConsulting() ? 'Consultando…' : 'Consultar RUES' }}
+            </button>
+          </div>
+          } @else {
+          <p class="docs-unavailable">Consulta RUES no disponible. Use el PDF manual.</p>
+          }
+
+          @if (ruesError()) {
+          <p class="docs-error" role="alert">{{ ruesError() }}</p>
+          }
+
+          @if (ruesResult(); as rues) {
+          <app-rues-comparison-panel
+            [consultation]="rues.consultation"
+            [issues]="rues.issues"
+            [mock]="rues.mock ?? false"
+          />
+          }
+
+          @if (hasRuesRepresentanteWarnings()) {
+          <label class="ack-checkbox">
+            <input type="checkbox" [checked]="ruesWarningsAcknowledged()" (change)="onRuesWarningsAckChange($event)" />
+            Confirmo que revisé las advertencias de representante legal.
+          </label>
+          }
+        </div>
+
+        <div class="docs-sep"><span>o</span></div>
+
+        <div class="docs-manual-block">
+          <div class="docs-manual-head">
+            <h5>PDF manual</h5>
+            <p>Respaldo si prefiere adjuntar el certificado usted mismo.</p>
+          </div>
+
+          @if (manualPdfWarning()) {
+          <p class="docs-warn">Sin consulta RUES previa. Se registrará una advertencia al enviar.</p>
+          }
 
           <label
-            class="upload-zone"
+            class="upload-zone docs-upload"
             [class.is-dragover]="dragOver()"
             (dragover)="onDragOver($event)"
             (dragleave)="onDragLeave($event)"
@@ -154,37 +202,41 @@
               (change)="onFilesSelected($event)"
             />
             <span class="upload-icon" aria-hidden="true">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
             </span>
-            <span class="upload-title">Arrastra el PDF aquí o haz clic para seleccionar</span>
+            <span class="upload-title">Arrastra el PDF o haz clic para seleccionar</span>
             <span class="upload-formats">Solo PDF · un archivo</span>
           </label>
+        </div>
 
-          @if (attachments().length > 0) {
-          <ul class="attachment-list">
-            @for (file of attachments(); track file.name) {
-            <li class="attachment-item">
-              <div class="attachment-meta">
-                <span class="attachment-badge" data-kind="pdf">PDF</span>
-                <span class="attachment-name" [title]="file.name">{{ file.name }}</span>
-              </div>
+        @if (attachments().length > 0) {
+        <ul class="attachment-list">
+          @for (file of attachments(); track file.name) {
+          <li class="attachment-item">
+            <div class="attachment-meta">
+              <span class="attachment-badge" data-kind="pdf">PDF</span>
+              <span class="attachment-name" [title]="file.name">{{ file.name }}</span>
+            </div>
+            <div class="attachment-actions">
+              @if (canPreviewAttachment(file)) {
+              <button type="button" class="attachment-action" (click)="previewAttachment(file)">Ver</button>
+              <button type="button" class="attachment-action" (click)="downloadAttachment(file)">Descargar</button>
+              }
               <button type="button" class="attachment-remove" (click)="removeAttachment(file.name)" aria-label="Quitar archivo">
                 Quitar
               </button>
-            </li>
-            }
-          </ul>
-          } @else {
-          <p class="upload-empty">Aún no hay archivo cargado.</p>
-          @if (fieldMessage('archivosAdjuntos'); as msg) {
-          <span class="field-error">{{ msg }}</span>
+            </div>
+          </li>
           }
-          }
-        </div>
+        </ul>
+        }
+        @if (attachments().length === 0 && fieldMessage('archivosAdjuntos'); as msg) {
+        <span class="field-error">{{ msg }}</span>
+        }
       </section>
       }
 
@@ -232,5 +284,28 @@
       }
     }
   </div>
+
+  @if (pdfPreviewOpen() && pdfPreviewSafeUrl(); as previewSrc) {
+  <div class="pdf-preview-overlay" (click)="closePdfPreview()" role="presentation">
+    <div class="pdf-preview-dialog" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Vista previa del PDF">
+      <header class="pdf-preview-header">
+        <span class="pdf-preview-title">{{ pdfPreviewTitle() }}</span>
+        <div class="pdf-preview-actions">
+          <button type="button" class="attachment-action" (click)="downloadCurrentPreview()">Descargar</button>
+          <button type="button" class="close-btn" aria-label="Cerrar vista previa" (click)="closePdfPreview()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </header>
+      <div class="pdf-preview-body">
+        <object class="pdf-preview-frame" [data]="previewSrc" type="application/pdf" aria-label="Vista previa del certificado PDF">
+          <embed class="pdf-preview-frame" [src]="previewSrc" type="application/pdf" />
+        </object>
+      </div>
+    </div>
+  </div>
+  }
 </div>
 }

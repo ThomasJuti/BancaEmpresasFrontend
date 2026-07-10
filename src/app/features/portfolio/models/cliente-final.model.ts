@@ -12,6 +12,16 @@ export interface ClienteFinalDto {
   leaAprobado: number | null;
   correo: string | null;
   telefono: string | null;
+  representanteLegalNombre?: string | null;
+  representanteLegalDocumento?: string | null;
+  representanteLegalCargo?: string | null;
+  direccionComercial?: string | null;
+  municipioComercial?: string | null;
+  tipoSociedad?: string | null;
+  actividadEconomica?: string | null;
+  ruesFound?: boolean | null;
+  ruesEnrichedAt?: string | null;
+  pipelineCase?: PipelineCaseDto | null;
 }
 
 export interface ClientesFinalesResponse {

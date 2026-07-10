@@ -24,6 +24,22 @@ export interface PowerAppSubmitRequest {
   ciudadPuntoEntrega: string;
   direccionPuntoComercial: string;
   puntoEntrega: PuntoEntrega;
+  ruesSolicitudId?: string;
+  ruesConsultadoEn?: string;
+  documentoOrigen?: 'RUES' | 'MANUAL';
+  ruesConsultation?: RuesConsultationRef;
+}
+
+export interface RuesConsultationRef {
+  solicitudId: string;
+  nit: string;
+  consultadoEn: string;
+  urlConsulta: string;
+  razonSocial: string;
+  datos: Record<string, string>;
+  secciones?: Record<string, Record<string, string>>;
+  representantes?: Array<{ documento: string; nombre: string }>;
+  actividades?: string[];
 }
 
 export interface ValidationIssue {

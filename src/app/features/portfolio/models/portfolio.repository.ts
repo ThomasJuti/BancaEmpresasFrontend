@@ -19,6 +19,7 @@ export interface PortfolioRepository {
   getCompanies(query: PortfolioPageQuery): Observable<PortfolioPageResult>;
   getKpis(): Observable<PortfolioKpis>;
   getCompanyPipeline(companyId: string): Observable<CompanyPipeline>;
+  invalidateCompanyCache(companyId: string): void;
   executeAction(companyId: string, stageId: string, actionId: string): Observable<ActionResult>;
 }
 

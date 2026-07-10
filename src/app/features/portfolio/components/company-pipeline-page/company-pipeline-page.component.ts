@@ -137,28 +137,44 @@ export class CompanyPipelinePageComponent implements OnInit {
     }
 
     this.submissionStore.save(p.id, result);
-    this.markPipelineSubmitted(p, result);
     this.powerAppReadOnly.set(true);
     this.lastRadicado.set(result.radicado);
 
     this.actionLoading.set(true);
-    this.repository.executeAction(p.id, 'power_app', 'power_app_approved').subscribe({
-      next: (actionResult) => {
-        if (actionResult.pipeline) {
-          const updated = this.applyStoredSubmission(actionResult.pipeline);
-          this.pipeline.set(updated);
-          this.selectedStageId.set(updated.currentStageId);
-        }
+    this.repository.invalidateCompanyCache(p.id);
+    this.repository.getCompanyPipeline(p.id).subscribe({
+      next: (refreshed) => {
+        const updated = this.applyStoredSubmission(refreshed, result);
+        this.pipeline.set(updated);
+        this.selectedStageId.set(updated.currentStageId);
         this.showFeedback(
           result.radicado
             ? `Solicitud aprobada. Radicado ${result.radicado}.`
-            : actionResult.message,
+            : 'Solicitud aprobada.',
         );
         this.actionLoading.set(false);
       },
       error: () => {
-        this.showFeedback(`Solicitud aprobada. Radicado ${result.radicado ?? '—'}.`);
-        this.actionLoading.set(false);
+        this.markPipelineSubmitted(p, result);
+        this.repository.executeAction(p.id, 'power_app', 'power_app_approved').subscribe({
+          next: (actionResult) => {
+            if (actionResult.pipeline) {
+              const updated = this.applyStoredSubmission(actionResult.pipeline, result);
+              this.pipeline.set(updated);
+              this.selectedStageId.set(updated.currentStageId);
+            }
+            this.showFeedback(
+              result.radicado
+                ? `Solicitud aprobada. Radicado ${result.radicado}.`
+                : actionResult.message,
+            );
+            this.actionLoading.set(false);
+          },
+          error: () => {
+            this.showFeedback(`Solicitud aprobada. Radicado ${result.radicado ?? '—'}.`);
+            this.actionLoading.set(false);
+          },
+        });
       },
     });
   }
@@ -208,18 +224,36 @@ export class CompanyPipelinePageComponent implements OnInit {
     this.pipeline.set({ ...pipeline });
   }
 
-  private applyStoredSubmission(pipeline: CompanyPipeline): CompanyPipeline {
+  private applyStoredSubmission(
+    pipeline: CompanyPipeline,
+    latestResult?: PowerAppSubmitResponse,
+  ): CompanyPipeline {
     const stored = this.submissionStore.get(pipeline.id);
     const approvedStored = stored?.valid ? stored : undefined;
-    const submittedAt = pipeline.powerAppSubmittedAt ?? approvedStored?.submittedAt;
+    const submittedAt =
+      pipeline.powerAppSubmittedAt ??
+      latestResult?.submittedAt ??
+      approvedStored?.submittedAt;
 
     const restored: CompanyPipeline = {
       ...pipeline,
       powerAppSubmittedAt: submittedAt,
-      powerAppRadicado: pipeline.powerAppRadicado ?? approvedStored?.radicado ?? null,
+      powerAppRadicado:
+        pipeline.powerAppRadicado ??
+        latestResult?.radicado ??
+        approvedStored?.radicado ??
+        null,
     };
 
-    if (restored.powerAppSubmittedAt && restored.currentStageId === 'power_app' && approvedStored) {
+    const backendCompleted =
+      !!restored.powerAppSubmittedAt && restored.currentStageId !== 'power_app';
+
+    if (
+      !backendCompleted &&
+      restored.powerAppSubmittedAt &&
+      restored.currentStageId === 'power_app' &&
+      approvedStored
+    ) {
       const powerStage = restored.stages.find((stage) => stage.id === 'power_app');
       if (powerStage) {
         powerStage.status = 'completed';

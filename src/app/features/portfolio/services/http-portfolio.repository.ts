@@ -73,7 +73,8 @@ export class HttpPortfolioRepository implements PortfolioRepository {
             );
 
         const companies = clientes.map((cliente) => {
-          const pipeline = this.toPipeline(cliente);
+          const pipelineCase = cliente.pipelineCase ?? undefined;
+          const pipeline = this.toPipeline(cliente, pipelineCase);
           applyCallState(pipeline, this.callStateFor(cliente.clienteId, calls));
           this.cache.set(pipeline.id, pipeline);
           return this.toSummary(pipeline);
@@ -113,6 +114,10 @@ export class HttpPortfolioRepository implements PortfolioRepository {
         return structuredClone(pipeline);
       }),
     );
+  }
+
+  invalidateCompanyCache(companyId: string): void {
+    this.cache.delete(companyId);
   }
 
   private fetchClienteDetail(companyId: string): Observable<ClienteFinalByIdResponse> {

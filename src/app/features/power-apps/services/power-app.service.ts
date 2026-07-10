@@ -2,9 +2,9 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { catchError, map, Observable, of, throwError } from 'rxjs';
 import { FILE_MATCHING_API, POWER_APPS_API } from '../../../core/config/api.config';
-import { ClienteFinal, ClientesFinalesResponse } from '../models/cliente-final.model';
+import { ClienteFinal, ClienteFinalByIdResponse, ClientesFinalesResponse } from '../models/cliente-final.model';
 import { PowerAppSubmitRequest, PowerAppSubmitResponse } from '../models/power-app-submit.model';
-import { normalizeNit } from '../utils/build-prefill.util';
+import { RuesConsultarResponse, RuesFormSnapshot } from '../models/rues-consultation.model';
 
 @Injectable({ providedIn: 'root' })
 export class PowerAppService {
@@ -17,9 +17,32 @@ export class PowerAppService {
   }
 
   getClienteByNit(nit: string): Observable<ClienteFinal | null> {
-    const normalized = normalizeNit(nit);
-    return this.getClientesFinales().pipe(
-      map((clientes) => clientes.find((c) => normalizeNit(c.clienteId) === normalized) ?? null),
+    const clienteId = nit.trim();
+    if (!clienteId) {
+      return of(null);
+    }
+
+    return this.http
+      .get<ClienteFinalByIdResponse>(
+        `${FILE_MATCHING_API}/clientes-finales/${encodeURIComponent(clienteId)}`,
+      )
+      .pipe(
+        map((res) => res.cliente ?? null),
+        catchError(() => of(null)),
+      );
+  }
+
+  consultarRues(nit: string, form?: RuesFormSnapshot): Observable<RuesConsultarResponse> {
+    const body: { nit: string; form?: RuesFormSnapshot } = { nit };
+    if (form && Object.values(form).some((value) => value?.trim())) {
+      body.form = form;
+    }
+    return this.http.post<RuesConsultarResponse>(`${POWER_APPS_API}/rues/consultar`, body);
+  }
+
+  ruesHealth(): Observable<{ enabled: boolean; status?: string }> {
+    return this.http.get<{ enabled: boolean; status?: string }>(`${POWER_APPS_API}/rues/health`).pipe(
+      catchError(() => of({ enabled: false })),
     );
   }
 

@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, Output, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, inject, signal } from '@angular/core';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { PowerAppService } from '../../services/power-app.service';
 import { PowerAppSubmissionStore } from '../../services/power-app-submission.store';
@@ -9,18 +10,33 @@ import {
   TipoIdentificacionTarjetahabiente,
   ValidationIssue,
 } from '../../models/power-app-submit.model';
+import { extractApiErrorMessage, humanizeRuesError } from '../../utils/extract-api-error.util';
 import { buildPrefillFromCliente } from '../../utils/build-prefill.util';
+import {
+  createPdfPreviewSource,
+  downloadPdfFromSource,
+  PdfPreviewSource,
+  revokePdfPreviewSource,
+} from '../../utils/pdf-attachment.util';
 import {
   POWER_APP_FIELD_TAB,
   hasBlockingValidationIssues,
   validatePowerAppClient,
 } from '../../utils/power-app-client-validator';
 import { PowerAppResultPanelComponent } from '../power-app-result-panel/power-app-result-panel.component';
+import { RuesComparisonPanelComponent } from '../rues-comparison-panel/rues-comparison-panel.component';
+import {
+  RuesConsultarResponse,
+  RuesFormSnapshot,
+  RuesMetadata,
+} from '../../models/rues-consultation.model';
 
 type TabId = 'cliente' | 'tarjeta' | 'adjuntos' | 'entrega';
 
 interface AttachmentItem {
   name: string;
+  pdfBase64?: string | null;
+  file?: File;
 }
 
 const ALLOWED_EXTENSION = 'pdf';
@@ -28,14 +44,15 @@ const ALLOWED_EXTENSION = 'pdf';
 @Component({
   selector: 'app-power-app-form-modal',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, PowerAppResultPanelComponent],
+  imports: [CommonModule, ReactiveFormsModule, PowerAppResultPanelComponent, RuesComparisonPanelComponent],
   templateUrl: './power-app-form-modal.component.html',
   styleUrls: ['./power-app-form-modal.component.css'],
 })
-export class PowerAppFormModalComponent implements OnChanges {
+export class PowerAppFormModalComponent implements OnChanges, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly powerAppService = inject(PowerAppService);
   private readonly submissionStore = inject(PowerAppSubmissionStore);
+  private readonly sanitizer = inject(DomSanitizer);
 
   @Input({ required: true }) companyNit!: string;
   @Input({ required: true }) companyName!: string;
@@ -58,6 +75,17 @@ export class PowerAppFormModalComponent implements OnChanges {
   readonly prefilledFields = signal<Set<string>>(new Set());
   readonly attachments = signal<AttachmentItem[]>([]);
   readonly dragOver = signal(false);
+  readonly ruesEnabled = signal(false);
+  readonly ruesConsulting = signal(false);
+  readonly ruesError = signal<string | null>(null);
+  readonly ruesResult = signal<RuesConsultarResponse | null>(null);
+  readonly ruesMetadata = signal<RuesMetadata | null>(null);
+  readonly manualPdfWarning = signal(false);
+  readonly ruesWarningsAcknowledged = signal(false);
+  readonly pdfPreviewOpen = signal(false);
+  readonly pdfPreviewTitle = signal('');
+  readonly pdfPreviewSafeUrl = signal<SafeResourceUrl | null>(null);
+  private pdfPreviewSource: PdfPreviewSource | null = null;
 
   readonly docTypes: TipoIdentificacionTarjetahabiente[] = ['CC', 'CE', 'PA', 'TI'];
   readonly puntoEntregaOptions: { value: PuntoEntrega; label: string }[] = [
@@ -125,6 +153,7 @@ export class PowerAppFormModalComponent implements OnChanges {
   }
 
   close(): void {
+    this.closePdfPreview();
     this.closed.emit();
   }
 
@@ -159,7 +188,116 @@ export class PowerAppFormModalComponent implements OnChanges {
   }
 
   removeAttachment(name: string): void {
+    this.closePdfPreview();
     this.attachments.update((list) => list.filter((item) => item.name !== name));
+    if (this.attachments().length === 0 && !this.ruesMetadata()) {
+      this.manualPdfWarning.set(false);
+    }
+  }
+
+  hasRuesRepresentanteWarnings(): boolean {
+    return (this.ruesResult()?.issues ?? []).some(
+      (issue) => issue.code === 'RUES_REPRESENTANTE_NO_COINCIDE' && issue.severity === 'warning',
+    );
+  }
+
+  consultarRues(): void {
+    const raw = this.form.getRawValue();
+    const nit = raw.identificacionEmpresa || this.companyNit;
+    if (!nit?.trim()) {
+      this.ruesError.set('Ingrese el NIT de la empresa antes de consultar RUES.');
+      this.activeTab.set('cliente');
+      return;
+    }
+
+    this.ruesError.set(null);
+    this.ruesConsulting.set(true);
+    this.manualPdfWarning.set(false);
+    this.ruesWarningsAcknowledged.set(false);
+
+    this.powerAppService
+      .consultarRues(nit, this.buildRuesFormSnapshot(raw))
+      .subscribe({
+        next: (response) => {
+          this.ruesConsulting.set(false);
+          this.ruesResult.set(response);
+          this.ruesMetadata.set({
+            solicitudId: response.consultation.solicitudId,
+            consultadoEn: response.consultation.consultadoEn,
+            documentoOrigen: 'RUES',
+            consultation: response.consultation,
+          });
+          this.attachments.set([
+            { name: response.pdfFilename, pdfBase64: response.pdfBase64 },
+          ]);
+          this.mergeRuesIssues(response.issues);
+        },
+        error: (err: unknown) => {
+          this.ruesConsulting.set(false);
+          this.ruesError.set(
+            humanizeRuesError(
+              extractApiErrorMessage(
+                err,
+                'No se pudo consultar RUES. Intente de nuevo o cargue el PDF manualmente.',
+              ),
+            ),
+          );
+        },
+      });
+  }
+
+  ruesNitLabel(): string {
+    const raw = this.form.getRawValue();
+    return (raw.identificacionEmpresa || this.companyNit || '').trim();
+  }
+
+  canPreviewAttachment(item: AttachmentItem): boolean {
+    return Boolean(item.pdfBase64 || item.file);
+  }
+
+  previewAttachment(item: AttachmentItem): void {
+    if (!this.canPreviewAttachment(item)) {
+      return;
+    }
+    this.closePdfPreview();
+    const source = createPdfPreviewSource(item);
+    if (!source) {
+      return;
+    }
+    this.pdfPreviewSource = source;
+    this.pdfPreviewSafeUrl.set(this.sanitizer.bypassSecurityTrustResourceUrl(source.url));
+    this.pdfPreviewTitle.set(item.name);
+    this.pdfPreviewOpen.set(true);
+  }
+
+  downloadAttachment(item: AttachmentItem): void {
+    if (!this.canPreviewAttachment(item)) {
+      return;
+    }
+    downloadPdfFromSource(item, item.name);
+  }
+
+  downloadCurrentPreview(): void {
+    const item = this.attachments().find((entry) => entry.name === this.pdfPreviewTitle());
+    if (item) {
+      this.downloadAttachment(item);
+    }
+  }
+
+  closePdfPreview(): void {
+    revokePdfPreviewSource(this.pdfPreviewSource);
+    this.pdfPreviewSource = null;
+    this.pdfPreviewSafeUrl.set(null);
+    this.pdfPreviewOpen.set(false);
+    this.pdfPreviewTitle.set('');
+  }
+
+  ngOnDestroy(): void {
+    this.closePdfPreview();
+  }
+
+  onRuesWarningsAckChange(event: Event): void {
+    this.ruesWarningsAcknowledged.set((event.target as HTMLInputElement).checked);
   }
 
   canRetrySubmission(): boolean {
@@ -212,8 +350,28 @@ export class PowerAppFormModalComponent implements OnChanges {
       leadId: raw.leadId || raw.identificacionEmpresa,
     };
 
-    const clientIssues = validatePowerAppClient(payload);
+    const clientIssues = [
+      ...validatePowerAppClient(payload),
+      ...(this.ruesResult()?.issues ?? []),
+    ];
+
+    if (this.manualPdfWarning() || this.ruesMetadata()?.documentoOrigen === 'MANUAL') {
+      clientIssues.push({
+        code: 'RUES_MANUAL_PDF_SIN_CONSULTA',
+        field: 'archivosAdjuntos',
+        message: 'Se adjuntó PDF manual sin consulta previa al RUES.',
+        severity: 'warning',
+        suggestion: 'Se recomienda consultar RUES para contrastar representantes legales.',
+      });
+    }
+
     this.fieldIssues.set(clientIssues);
+
+    if (this.hasRuesRepresentanteWarnings() && !this.ruesWarningsAcknowledged()) {
+      this.submitError.set('Confirme que revisó las advertencias de representante legal en RUES.');
+      this.activeTab.set('adjuntos');
+      return;
+    }
 
     if (hasBlockingValidationIssues(clientIssues)) {
       const firstError = clientIssues.find((issue) => issue.severity === 'error');
@@ -226,8 +384,23 @@ export class PowerAppFormModalComponent implements OnChanges {
       return;
     }
 
+    const ruesMeta = this.ruesMetadata();
+    const submitPayload = {
+      ...payload,
+      ...(ruesMeta
+        ? {
+            ruesSolicitudId: ruesMeta.solicitudId,
+            ruesConsultadoEn: ruesMeta.consultadoEn,
+            documentoOrigen: ruesMeta.documentoOrigen,
+            ruesConsultation: ruesMeta.consultation ?? undefined,
+          }
+        : {
+            documentoOrigen: 'MANUAL' as const,
+          }),
+    };
+
     this.submitting.set(true);
-    this.powerAppService.submit(payload).subscribe({
+    this.powerAppService.submit(submitPayload).subscribe({
       next: (res) => {
         this.result.set(res);
         this.submitting.set(false);
@@ -257,7 +430,48 @@ export class PowerAppFormModalComponent implements OnChanges {
     }
 
     this.submitError.set(null);
-    this.attachments.set([{ name: pdfFile.name }]);
+    this.attachments.set([{ name: pdfFile.name, file: pdfFile }]);
+    this.ruesResult.set(null);
+    this.ruesMetadata.set({
+      solicitudId: '',
+      consultadoEn: '',
+      documentoOrigen: 'MANUAL',
+      consultation: null,
+    });
+    this.manualPdfWarning.set(true);
+    this.ruesWarningsAcknowledged.set(false);
+  }
+
+  private buildRuesFormSnapshot(raw: ReturnType<typeof this.form.getRawValue>): RuesFormSnapshot | undefined {
+    const snapshot: RuesFormSnapshot = {
+      identificacionEmpresa: raw.identificacionEmpresa?.trim() || undefined,
+      nombreEmpresa: raw.nombreEmpresa?.trim() || undefined,
+      numeroIdentificacionTarjetahabiente: raw.numeroIdentificacionTarjetahabiente?.trim() || undefined,
+      nombreTarjetahabiente: raw.nombreTarjetahabiente?.trim() || undefined,
+      ciudadPuntoEntrega: raw.ciudadPuntoEntrega?.trim() || undefined,
+    };
+    return Object.values(snapshot).some(Boolean) ? snapshot : undefined;
+  }
+
+  private mergeRuesIssues(issues: ValidationIssue[]): void {
+    const merged = [...this.fieldIssues().filter((issue) => !issue.code.startsWith('RUES_')), ...issues];
+    this.fieldIssues.set(merged);
+  }
+
+  private resetRuesState(): void {
+    this.ruesConsulting.set(false);
+    this.ruesError.set(null);
+    this.ruesResult.set(null);
+    this.ruesMetadata.set(null);
+    this.manualPdfWarning.set(false);
+    this.ruesWarningsAcknowledged.set(false);
+  }
+
+  private checkRuesAvailability(): void {
+    this.powerAppService.ruesHealth().subscribe({
+      next: (health) => this.ruesEnabled.set(health.enabled),
+      error: () => this.ruesEnabled.set(false),
+    });
   }
 
   private buildPersistedResult(): PowerAppSubmitResponse {
@@ -280,6 +494,8 @@ export class PowerAppFormModalComponent implements OnChanges {
     this.fieldIssues.set([]);
     this.attachments.set([]);
     this.activeTab.set('cliente');
+    this.resetRuesState();
+    this.checkRuesAvailability();
 
     this.powerAppService.getClienteByNit(this.companyNit).subscribe({
       next: (cliente) => {

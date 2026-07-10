@@ -1,0 +1,24 @@
+<section class="rues-panel">
+  <div class="rues-panel-facts">
+    <span class="rues-panel-label">Resultado de la consulta</span>
+    <p class="rues-summary">
+      <strong>{{ consultation.razonSocial }}</strong>
+      <span class="rues-chip">NIT {{ consultation.nit }}</span>
+      <span class="rues-chip">Matrícula {{ matriculaEstado() }}</span>
+    </p>
+  </div>
+
+  <div class="rues-panel-result">
+    @if (issues.length > 0) {
+    <ul class="rues-alerts">
+      @for (issue of issues; track issue.code + issue.field) {
+      <li [class.is-error]="issue.severity === 'error'" [class.is-warning]="issue.severity === 'warning'">
+        {{ issue.message }}
+      </li>
+      }
+    </ul>
+    } @else {
+    <p class="rues-ok">Los datos del formulario coinciden con RUES.</p>
+    }
+  </div>
+</section>
