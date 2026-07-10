@@ -40,6 +40,19 @@ export interface CreatedBatch {
   status: string;
 }
 
+export type CallStatus = 'queued' | 'initiated' | 'in_progress' | 'completed' | 'failed';
+
+/** Vista mínima de una llamada para correlacionar el estado del pipeline por cliente. */
+export interface CallRecord {
+  id: string;
+  phoneNumber: string;
+  status: CallStatus;
+  recordingUrl?: string;
+  successEvaluation?: boolean | string;
+  variables?: Record<string, string>;
+  updatedAt?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SalesCallsService {
   private readonly http = inject(HttpClient);
@@ -50,5 +63,9 @@ export class SalesCallsService {
 
   createBatch(request: CreateBatchRequest): Observable<CreatedBatch> {
     return this.http.post<CreatedBatch>(`${SALES_CALLS_API}/batches`, request);
+  }
+
+  listCalls(): Observable<CallRecord[]> {
+    return this.http.get<CallRecord[]>(`${SALES_CALLS_API}/calls`);
   }
 }

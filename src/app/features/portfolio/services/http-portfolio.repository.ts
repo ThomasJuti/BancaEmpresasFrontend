@@ -1,7 +1,8 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { catchError, map, Observable, of, throwError } from 'rxjs';
+import { catchError, forkJoin, map, Observable, of, throwError } from 'rxjs';
 import { FILE_MATCHING_API } from '../../../core/config/api.config';
+import { CallRecord, SalesCallsService } from '../../../core/services/sales-calls.service';
 import {
   ClienteFinalByIdResponse,
   ClienteFinalDto,
@@ -18,7 +19,13 @@ import {
   PortfolioPageResult,
   PortfolioRepository,
 } from '../models/portfolio.repository';
-import { applyPipelineAction, buildStages, computeProgress } from '../utils/pipeline-builder';
+import {
+  applyCallState,
+  applyPipelineAction,
+  buildStages,
+  CallStateInput,
+  computeProgress,
+} from '../utils/pipeline-builder';
 
 // Todo lead recién cruzado entra al pipeline en la etapa de llamadas de venta.
 const INITIAL_STAGE: PipelineStageId = 'calls';
@@ -34,6 +41,7 @@ const INITIAL_STAGE: PipelineStageId = 'calls';
 @Injectable()
 export class HttpPortfolioRepository implements PortfolioRepository {
   private readonly http = inject(HttpClient);
+  private readonly salesCalls = inject(SalesCallsService);
   private readonly endpoint = `${FILE_MATCHING_API}/clientes-finales`;
 
   // Pipelines construidos en la sesión, para conservar el efecto de las acciones
@@ -50,8 +58,11 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       params = params.set('q', search);
     }
 
-    return this.http.get<ClientesFinalesPaginatedResponse>(this.endpoint, { params }).pipe(
-      map((response) => {
+    return forkJoin({
+      response: this.http.get<ClientesFinalesPaginatedResponse>(this.endpoint, { params }),
+      calls: this.listCallsSafe(),
+    }).pipe(
+      map(({ response, calls }) => {
         const isPaginated = response.page !== undefined && response.pageSize !== undefined;
         const clientes = isPaginated
           ? response.clientes
@@ -62,6 +73,7 @@ export class HttpPortfolioRepository implements PortfolioRepository {
 
         const companies = clientes.map((cliente) => {
           const pipeline = this.toPipeline(cliente);
+          applyCallState(pipeline, this.callStateFor(cliente.clienteId, calls));
           this.cache.set(pipeline.id, pipeline);
           return this.toSummary(pipeline);
         });
@@ -89,33 +101,60 @@ export class HttpPortfolioRepository implements PortfolioRepository {
   }
 
   getCompanyPipeline(companyId: string): Observable<CompanyPipeline> {
-    const cached = this.cache.get(companyId);
-    if (cached) {
-      return of(structuredClone(cached));
-    }
-
-    return this.http.get<ClienteFinalByIdResponse>(`${this.endpoint}/${companyId}`).pipe(
-      map((response) => {
-        const pipeline = this.toPipeline(response.cliente);
+    return forkJoin({
+      cliente: this.fetchCliente(companyId),
+      calls: this.listCallsSafe(),
+    }).pipe(
+      map(({ cliente, calls }) => {
+        const pipeline = this.toPipeline(cliente);
+        applyCallState(pipeline, this.callStateFor(cliente.clienteId, calls));
         this.cache.set(pipeline.id, pipeline);
         return structuredClone(pipeline);
       }),
-      catchError(() => this.fetchClienteFromList(companyId)),
     );
   }
 
-  private fetchClienteFromList(companyId: string): Observable<CompanyPipeline> {
-    return this.http.get<ClientesFinalesPaginatedResponse>(this.endpoint).pipe(
-      map((response) => {
-        const cliente = response.clientes.find((c) => c.clienteId === companyId);
-        if (!cliente) {
-          throw new Error('Empresa no encontrada');
-        }
-        const pipeline = this.toPipeline(cliente);
-        this.cache.set(pipeline.id, pipeline);
-        return structuredClone(pipeline);
-      }),
+  private fetchCliente(companyId: string): Observable<ClienteFinalDto> {
+    return this.http.get<ClienteFinalByIdResponse>(`${this.endpoint}/${companyId}`).pipe(
+      map((response) => response.cliente),
+      catchError(() =>
+        this.http.get<ClientesFinalesPaginatedResponse>(this.endpoint).pipe(
+          map((response) => {
+            const cliente = response.clientes.find((c) => c.clienteId === companyId);
+            if (!cliente) {
+              throw new Error('Empresa no encontrada');
+            }
+            return cliente;
+          }),
+        ),
+      ),
     );
+  }
+
+  /** Lista de llamadas tolerante a fallos: si el endpoint falla, no rompe el portafolio. */
+  private listCallsSafe(): Observable<CallRecord[]> {
+    return this.salesCalls.listCalls().pipe(catchError(() => of([] as CallRecord[])));
+  }
+
+  /** Deriva el estado del stage `calls` desde la llamada más reciente del cliente (match por NIT). */
+  private callStateFor(clienteId: string, calls: CallRecord[]): CallStateInput | undefined {
+    const matches = calls.filter((c) => c.variables?.['nit'] === clienteId);
+    if (matches.length === 0) {
+      return undefined;
+    }
+    const latest = matches.reduce((a, b) =>
+      (a.updatedAt ?? '') >= (b.updatedAt ?? '') ? a : b,
+    );
+    return {
+      status: latest.status,
+      hasRecording: !!latest.recordingUrl,
+      qualified: this.isQualified(latest.successEvaluation),
+      at: latest.updatedAt,
+    };
+  }
+
+  private isQualified(value?: boolean | string): boolean {
+    return value === true || value === 'true' || value === 'Verdadero';
   }
 
   executeAction(companyId: string, stageId: string, actionId: string): Observable<ActionResult> {

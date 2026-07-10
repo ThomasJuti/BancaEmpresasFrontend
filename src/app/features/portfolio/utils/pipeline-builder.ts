@@ -181,6 +181,68 @@ export function applyPipelineAction(
   }
 }
 
+/** Estado real de la llamada de un cliente, para reflejarlo en los checks. */
+export interface CallStateInput {
+  status: 'queued' | 'initiated' | 'in_progress' | 'completed' | 'failed';
+  hasRecording: boolean;
+  qualified: boolean;
+  at?: string;
+}
+
+function setSubStep(stage: PipelineStage, id: string, status: StepStatus, at?: string): void {
+  const sub = stage.subSteps.find((s) => s.id === id);
+  if (!sub) {
+    return;
+  }
+  sub.status = status;
+  if (status === 'completed' && at) {
+    sub.completedAt = at;
+  }
+}
+
+/**
+ * Refleja el estado real de la llamada de venta en el stage `calls` (checks de
+ * proceso). Si la llamada quedó calificada (identidad verificada + interés),
+ * avanza el pipeline a `power_app`.
+ */
+export function applyCallState(pipeline: CompanyPipeline, call: CallStateInput | undefined): void {
+  const stage = pipeline.stages.find((s) => s.id === 'calls');
+  if (!stage || !call) {
+    return;
+  }
+  const at = call.at;
+
+  switch (call.status) {
+    case 'queued':
+    case 'initiated':
+      setSubStep(stage, 'contact', 'in_progress');
+      break;
+    case 'in_progress':
+      setSubStep(stage, 'contact', 'completed', at);
+      setSubStep(stage, 'benefits', 'in_progress');
+      break;
+    case 'failed':
+      setSubStep(stage, 'contact', 'completed', at);
+      break;
+    case 'completed':
+      setSubStep(stage, 'contact', 'completed', at);
+      setSubStep(stage, 'benefits', 'completed', at);
+      setSubStep(stage, 'acceptance', call.qualified ? 'completed' : 'pending', at);
+      setSubStep(stage, 'recording', call.hasRecording ? 'completed' : 'pending', at);
+      if (call.qualified) {
+        stage.status = 'completed';
+        pipeline.currentStageId = 'power_app';
+        pipeline.currentStageLabel = PIPELINE_STAGE_LABELS['power_app'];
+        pipeline.progressPercent = computeProgress('power_app');
+        const next = pipeline.stages.find((s) => s.id === 'power_app');
+        if (next) {
+          next.status = 'in_progress';
+        }
+      }
+      break;
+  }
+}
+
 export function advanceStage(pipeline: CompanyPipeline, completedStageId: PipelineStageId): void {
   const completed = pipeline.stages.find((s) => s.id === completedStageId);
   if (completed) {
