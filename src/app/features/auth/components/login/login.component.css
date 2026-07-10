@@ -4,7 +4,7 @@
 
 .login {
   display: grid;
-  grid-template-columns: minmax(360px, 44%) 1fr;
+  grid-template-columns: 1fr minmax(360px, 44%);
   min-height: 100vh;
 }
 
@@ -96,6 +96,7 @@
 .login-hero {
   position: relative;
   overflow: hidden;
+  background: #9bbfe4;
 }
 
 .hero-art {
@@ -103,6 +104,8 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  object-fit: contain;
+  object-position: center;
 }
 
 @media (max-width: 900px) {
