@@ -39,6 +39,7 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
   readonly rangeEnd = computed(() => Math.min(this.page() * PAGE_SIZE, this.total()));
   readonly canGoPrev = computed(() => this.page() > 1);
   readonly canGoNext = computed(() => this.page() < this.totalPages());
+  readonly pageItems = computed(() => buildPageItems(this.totalPages(), this.page()));
 
   private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -150,6 +151,19 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
   goToNextPage(): void {
     if (!this.canGoNext()) return;
     this.page.update((current) => current + 1);
+    this.load();
+  }
+
+  goToPage(targetPage: number): void {
+    if (
+      targetPage < 1 ||
+      targetPage > this.totalPages() ||
+      targetPage === this.page() ||
+      this.loading()
+    ) {
+      return;
+    }
+    this.page.set(targetPage);
     this.load();
   }
 
@@ -293,4 +307,31 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
     this.feedback.set(message);
     setTimeout(() => this.feedback.set(null), 4000);
   }
+}
+
+type PageItem = { kind: 'page'; page: number } | { kind: 'gap' };
+
+function buildPageItems(totalPages: number, currentPage: number): PageItem[] {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => ({ kind: 'page', page: index + 1 }));
+  }
+
+  const items: PageItem[] = [{ kind: 'page', page: 1 }];
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+
+  if (start > 2) {
+    items.push({ kind: 'gap' });
+  }
+
+  for (let page = start; page <= end; page += 1) {
+    items.push({ kind: 'page', page });
+  }
+
+  if (end < totalPages - 1) {
+    items.push({ kind: 'gap' });
+  }
+
+  items.push({ kind: 'page', page: totalPages });
+  return items;
 }

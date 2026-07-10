@@ -169,12 +169,25 @@
       </svg>
       <span>Anterior</span>
     </button>
-    <span class="pagination-status" aria-live="polite">
-      <span class="pagination-label">Página</span>
-      <span class="pagination-current">{{ page() }}</span>
-      <span class="pagination-sep">de</span>
-      <span class="pagination-total">{{ totalPages() }}</span>
-    </span>
+    <div class="pagination-pages" role="group" aria-label="Ir a página">
+      @for (item of pageItems(); track $index) {
+        @if (item.kind === 'gap') {
+        <span class="pagination-gap" aria-hidden="true">…</span>
+        } @else {
+        <button
+          type="button"
+          class="pagination-page-btn"
+          [class.is-active]="item.page === page()"
+          [disabled]="loading()"
+          [attr.aria-current]="item.page === page() ? 'page' : null"
+          [attr.aria-label]="'Ir a página ' + item.page"
+          (click)="goToPage(item.page)"
+        >
+          {{ item.page }}
+        </button>
+        }
+      }
+    </div>
     <button
       type="button"
       class="pagination-btn"

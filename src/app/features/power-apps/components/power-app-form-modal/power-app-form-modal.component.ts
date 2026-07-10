@@ -12,6 +12,13 @@ import { PowerAppResultPanelComponent } from '../power-app-result-panel/power-ap
 
 type TabId = 'cliente' | 'tarjeta' | 'adjuntos' | 'entrega';
 
+interface AttachmentItem {
+  name: string;
+  kind: 'pdf' | 'image';
+}
+
+const ALLOWED_EXTENSIONS = new Set(['pdf', 'jpg', 'jpeg', 'png']);
+
 @Component({
   selector: 'app-power-app-form-modal',
   standalone: true,
@@ -37,7 +44,8 @@ export class PowerAppFormModalComponent implements OnChanges {
   readonly submitError = signal<string | null>(null);
   readonly result = signal<PowerAppSubmitResponse | null>(null);
   readonly prefilledFields = signal<Set<string>>(new Set());
-  readonly attachments = signal<string[]>([]);
+  readonly attachments = signal<AttachmentItem[]>([]);
+  readonly dragOver = signal(false);
 
   readonly docTypes: TipoIdentificacionTarjetahabiente[] = ['CC', 'CE', 'PA', 'TI'];
   readonly puntoEntregaOptions: { value: PuntoEntrega; label: string }[] = [
@@ -48,7 +56,7 @@ export class PowerAppFormModalComponent implements OnChanges {
   readonly tabs: { id: TabId; label: string }[] = [
     { id: 'cliente', label: 'Cliente' },
     { id: 'tarjeta', label: 'Tarjeta' },
-    { id: 'adjuntos', label: 'Adjuntos' },
+    { id: 'adjuntos', label: 'Documentos' },
     { id: 'entrega', label: 'Entrega' },
   ];
 
@@ -97,44 +105,32 @@ export class PowerAppFormModalComponent implements OnChanges {
     }
   }
 
-  onPdfSelected(event: Event): void {
+  onFilesSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      this.submitError.set('El certificado de Cámara de Comercio debe ser un archivo PDF.');
-      input.value = '';
-      return;
-    }
-
-    const nit = this.form.controls.identificacionEmpresa.value.replace(/\D/g, '') || 'empresa';
-    const name = file.name.toLowerCase().includes('camara')
-      ? file.name
-      : `camara_comercio_${nit}.pdf`;
-
-    const current = this.attachments().filter((a) => !a.toLowerCase().endsWith('.pdf'));
-    this.attachments.set([...current, name]);
-    this.submitError.set(null);
+    const files = input.files ? Array.from(input.files) : [];
+    this.addFiles(files);
     input.value = '';
   }
 
-  onImageSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext !== 'jpg' && ext !== 'jpeg' && ext !== 'png') {
-      this.submitError.set('Solo se permiten imágenes JPG o PNG adicionales.');
-      input.value = '';
-      return;
-    }
-    this.attachments.update((list) => [...list, file.name]);
-    input.value = '';
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.dragOver.set(true);
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    this.dragOver.set(false);
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.dragOver.set(false);
+    const files = event.dataTransfer?.files ? Array.from(event.dataTransfer.files) : [];
+    this.addFiles(files);
   }
 
   removeAttachment(name: string): void {
-    this.attachments.update((list) => list.filter((a) => a !== name));
+    this.attachments.update((list) => list.filter((item) => item.name !== name));
   }
 
   retryForm(): void {
@@ -150,9 +146,9 @@ export class PowerAppFormModalComponent implements OnChanges {
       return;
     }
 
-    const pdf = this.attachments().some((a) => a.toLowerCase().endsWith('.pdf'));
-    if (!pdf) {
-      this.submitError.set('Debe adjuntar el PDF de Cámara de Comercio.');
+    const hasPdf = this.attachments().some((item) => item.kind === 'pdf');
+    if (!hasPdf) {
+      this.submitError.set('Debe adjuntar al menos un PDF (certificado de Cámara de Comercio).');
       this.activeTab.set('adjuntos');
       return;
     }
@@ -163,7 +159,7 @@ export class PowerAppFormModalComponent implements OnChanges {
       tipoTarjetaNueva: 'LATAM BUSINESS',
       cupoTarjetaNueva: Number(raw.cupoTarjetaNueva),
       cupoDisponibleCec: raw.cupoDisponibleCec ? Number(raw.cupoDisponibleCec) : undefined,
-      archivosAdjuntos: this.attachments(),
+      archivosAdjuntos: this.attachments().map((item) => item.name),
       leadId: raw.leadId || raw.identificacionEmpresa,
     };
 
@@ -181,6 +177,42 @@ export class PowerAppFormModalComponent implements OnChanges {
         this.submitError.set('No se pudo enviar la solicitud. Verifique la conexión con el backend.');
       },
     });
+  }
+
+  private addFiles(files: File[]): void {
+    if (files.length === 0) return;
+
+    const nit = this.form.controls.identificacionEmpresa.value.replace(/\D/g, '') || 'empresa';
+    const next: AttachmentItem[] = [];
+    let rejected = false;
+
+    for (const file of files) {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+      if (!ALLOWED_EXTENSIONS.has(ext)) {
+        rejected = true;
+        continue;
+      }
+
+      const kind: AttachmentItem['kind'] = ext === 'pdf' ? 'pdf' : 'image';
+      const name =
+        kind === 'pdf' && !file.name.toLowerCase().includes('camara')
+          ? `camara_comercio_${nit}.pdf`
+          : file.name;
+
+      if (!this.attachments().some((item) => item.name === name) && !next.some((item) => item.name === name)) {
+        next.push({ name, kind });
+      }
+    }
+
+    if (rejected) {
+      this.submitError.set('Algunos archivos no son válidos. Solo se permiten PDF, JPG y PNG.');
+    } else {
+      this.submitError.set(null);
+    }
+
+    if (next.length > 0) {
+      this.attachments.update((list) => [...list, ...next]);
+    }
   }
 
   private loadPrefill(): void {

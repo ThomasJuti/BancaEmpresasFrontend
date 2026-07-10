@@ -1,8 +1,11 @@
 .power-app-modal.wide {
-  max-width: 720px;
+  max-width: 760px;
   width: 100%;
-  max-height: 90vh;
+  max-height: 92vh;
   overflow-y: auto;
+  padding: 0;
+  border: none;
+  box-shadow: 0 24px 48px rgba(0, 47, 135, 0.18);
 }
 
 .modal-header {
@@ -10,13 +13,30 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  margin-bottom: 20px;
+  padding: 24px 28px 20px;
+  background: linear-gradient(180deg, #f4f8ff 0%, var(--surface) 100%);
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header-text {
+  min-width: 0;
+}
+
+.modal-eyebrow {
+  display: inline-block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--primary);
 }
 
 .modal-header h4 {
   margin: 0 0 4px;
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--heading);
 }
 
 .modal-header .muted {
@@ -26,50 +46,72 @@
 }
 
 .close-btn {
-  border: none;
-  background: transparent;
-  font-size: 28px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
   cursor: pointer;
-  color: var(--muted);
-  padding: 0 4px;
+  color: var(--body);
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.close-btn:hover {
+  background: var(--blue-tint);
+  border-color: #c5d9f5;
+  color: var(--primary);
 }
 
 .tabs {
   display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 20px;
+  gap: 8px;
+  padding: 16px 28px 0;
+  border-bottom: none;
+  margin-bottom: 0;
+  overflow-x: auto;
 }
 
 .tab {
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
-  padding: 14px 18px;
+  padding: 10px 16px;
   font-family: inherit;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: #6e7a8a;
   cursor: pointer;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -1px;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.tab:hover {
+  background: var(--blue-tint);
+  color: var(--primary);
 }
 
 .tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  color: var(--primary);
+  background: var(--blue-tint);
+  border-color: #c5d9f5;
 }
 
 .form-body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 20px 28px 28px;
 }
 
 .tab-panel {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-height: 280px;
 }
 
 .field-row {
@@ -80,7 +122,7 @@
 
 .field label {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   margin-bottom: 6px;
   color: var(--heading);
@@ -90,18 +132,25 @@
 .field select {
   width: 100%;
   border: 1.5px solid var(--border-input);
-  border-radius: var(--radius-card);
+  border-radius: 12px;
   padding: 12px 14px;
   font-size: 15px;
   font-family: inherit;
   color: var(--heading);
   background: var(--surface);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .field input:focus,
 .field select:focus {
   outline: none;
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 82, 204, 0.12);
+}
+
+.field input[readonly] {
+  background: #f5f7fa;
+  color: #5c6b7a;
 }
 
 .tag-prefill {
@@ -114,44 +163,42 @@
   margin-left: 6px;
 }
 
-.hint-block {
-  margin: 0;
-  font-size: 13px;
-  color: var(--body);
-  padding: 12px 14px;
-  background: var(--blue-tint);
-  border-radius: var(--radius-btn);
-}
-
-.attachment-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.upload-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.attachment-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  background: var(--page-bg);
-  border-radius: var(--radius-btn);
-  font-size: 14px;
+  gap: 12px;
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding-top: 8px;
+  padding-top: 12px;
+  margin-top: 4px;
   border-top: 1px solid var(--divider);
 }
 
+.power-app-modal .alert-banner {
+  margin: 16px 28px 0;
+}
+
+.power-app-modal .state {
+  padding: 24px 28px;
+}
+
 @media (max-width: 640px) {
+  .modal-header,
+  .tabs,
+  .form-body {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
   .field-row {
     grid-template-columns: 1fr;
+  }
+
+  .tab-panel {
+    min-height: auto;
   }
 }
