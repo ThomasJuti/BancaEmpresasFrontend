@@ -206,6 +206,7 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       activationStatus: 'pending',
       phone: cliente.telefono,
       email: cliente.correo,
+      representanteLegalNombre: cliente.representanteLegalNombre,
       powerAppSubmittedAt: powerAppSubmitted ? pipelineCase!.updatedAt : undefined,
       stages: buildStages(currentStageId),
     };

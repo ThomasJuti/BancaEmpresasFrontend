@@ -16,6 +16,7 @@ export interface PortfolioCompanySummary {
   activationStatus: ActivationStatus;
   phone?: string | null;
   email?: string | null;
+  representanteLegalNombre?: string | null;
   powerAppSubmittedAt?: string;
   powerAppRadicado?: string | null;
 }

@@ -302,13 +302,18 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
   }
 
   // Variables de contexto que el agente Fonema usa en el protocolo de
-  // verificación (nombre de empresa y NIT). Deben coincidir con las variables
-  // del script del agente: `empresa` y `nit`.
+  // verificación (nombre de empresa, NIT y representante legal). Deben
+  // coincidir con las variables del script del agente: `empresa`, `nit` y
+  // `nombre` (nombre del representante legal).
   private callContext(company: PortfolioCompanySummary): Record<string, string> {
-    return {
+    const context: Record<string, string> = {
       empresa: company.name,
       nit: company.nit,
     };
+    if (company.representanteLegalNombre) {
+      context['nombre'] = company.representanteLegalNombre;
+    }
+    return context;
   }
 
   goToCalls(): void {
