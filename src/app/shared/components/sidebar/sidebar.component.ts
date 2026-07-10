@@ -28,8 +28,8 @@ export class SidebarComponent {
     { label: 'Reportes', icon: 'chart' },
   ];
 
-  logout(): void {
-    this.auth.logout();
+  async logout(): Promise<void> {
+    await this.auth.logout();
     void this.router.navigate(['/login']);
   }
 }
