@@ -131,6 +131,30 @@
         </button>
       </div>
     </div>
+    } @else if (contactMode() === 'tracking') {
+    @if (trackingCall(); as call) {
+    <div class="tracking-banner" [ngClass]="trackingBannerVariant(call)">
+      <div class="tracking-banner-main">
+        @if (isPendingCall(call)) {
+        <span class="tracking-pulse" aria-hidden="true"></span>
+        }
+        <div>
+          <p class="tracking-title">{{ trackingBannerMessage(call) }}</p>
+          <p class="tracking-meta muted">
+            {{ statusLabel(call.status) }} · {{ call.createdAt | date: 'short' }}
+            @if (call.phoneNumber) { · {{ call.phoneNumber }} }
+          </p>
+        </div>
+      </div>
+      @if (showTrackingActions(call)) {
+      <div class="tracking-actions">
+        <button type="button" class="btn-secondary sm" (click)="viewRecordingHistory()">
+          Ver en grabación
+        </button>
+      </div>
+      }
+    </div>
+    }
     }
   } @else {
     @if (!embeddedHistory()) {
@@ -169,6 +193,9 @@
           <span>{{ originLabel(item) }}</span>
           <span class="badge sm" [attr.data-status]="item.status">{{ statusLabel(item.status) }}</span>
           <span class="muted">{{ item.createdAt | date: 'short' }}</span>
+          @if (manualNotesPreview(item); as preview) {
+          <span class="picker-notes muted">{{ preview }}</span>
+          }
         </button>
         }
       </div>
@@ -190,10 +217,63 @@
         </button>
       </div>
 
-      @if (isPendingCall(call)) {
+      @if (isPendingCall(call) || isCallProcessing(call)) {
       <div class="pending-card">
         <p>{{ pendingCallMessage(call) }}</p>
       </div>
+      } @else if (isManual(call)) {
+      <section class="manual-registration-panel">
+        <div class="manual-registration-head">
+          <span class="origin-tag manual lg">Registro del asesor</span>
+          <span class="meta-chip muted">{{ call.createdAt | date: 'short' }}</span>
+        </div>
+
+        <div class="manual-contact-card">
+          <strong>{{ contactTitle(call, representanteLegalNombre) }}</strong>
+          @if (call.phoneNumber) {
+          <span class="muted">{{ call.phoneNumber }}</span>
+          }
+        </div>
+
+        <div class="manual-protocol-grid protocol-grid">
+          @if (identityVerified(call) !== null) {
+          <div class="protocol-cell">
+            <span>Identidad verificada</span>
+            <span class="pill" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
+              {{ identityVerified(call) ? 'Sí' : 'No' }}
+            </span>
+          </div>
+          }
+          @if (clientInterested(call) !== null) {
+          <div class="protocol-cell">
+            <span>Cliente interesado</span>
+            <span class="pill" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
+              {{ clientInterested(call) ? 'Sí' : 'No' }}
+            </span>
+          </div>
+          }
+          @if (noInterestReason(call); as reason) {
+          <div class="protocol-cell wide">
+            <span>Motivo de no interés</span>
+            <span class="protocol-value emphasis">{{ reason }}</span>
+          </div>
+          }
+        </div>
+
+        @if (call.durationSeconds != null) {
+        <div class="manual-duration">
+          <span class="metric-label">Duración registrada</span>
+          <span class="metric-value">{{ call.durationSeconds }}<small> seg</small></span>
+        </div>
+        }
+
+        @if (call.summary) {
+        <div class="manual-notes-block">
+          <h6>Notas del asesor</h6>
+          <p class="summary-text">{{ call.summary }}</p>
+        </div>
+        }
+      </section>
       } @else {
       <div class="call-dashboard-grid">
         <div class="call-dashboard-primary">
@@ -276,12 +356,6 @@
             <p class="summary-text">{{ call.summary }}</p>
           </section>
           }
-
-          @if (isManual(call)) {
-          <section class="dash-panel note-panel">
-            <p class="muted">Registro manual del asesor — sin grabación ni transcripción automática.</p>
-          </section>
-          }
         </div>
 
         <div class="call-dashboard-media">
@@ -342,6 +416,9 @@
             <span class="muted">{{ call.phoneNumber }}</span>
           </div>
           <div class="muted small">{{ call.createdAt | date: 'short' }}</div>
+          @if (manualNotesPreview(call); as preview) {
+          <p class="call-item-notes muted">{{ preview }}</p>
+          }
           @if (identityVerified(call) !== null || clientInterested(call) !== null) {
           <div class="tags">
             @if (identityVerified(call) !== null) {
@@ -375,6 +452,60 @@
           </div>
         </div>
 
+        @if (isManual(call)) {
+        <section class="manual-registration-panel detail-manual">
+          <div class="manual-registration-head">
+            <span class="origin-tag manual lg">Registro del asesor</span>
+            <span class="meta-chip muted">{{ call.createdAt | date: 'short' }}</span>
+          </div>
+
+          <div class="manual-contact-card">
+            <strong>{{ contactTitle(call, representanteLegalNombre) }}</strong>
+            @if (call.phoneNumber) {
+            <span class="muted">{{ call.phoneNumber }}</span>
+            }
+          </div>
+
+          <div class="manual-protocol-grid protocol-grid">
+            @if (identityVerified(call) !== null) {
+            <div class="protocol-cell">
+              <span>Identidad verificada</span>
+              <span class="pill" [class.ok]="identityVerified(call)" [class.no]="!identityVerified(call)">
+                {{ identityVerified(call) ? 'Sí' : 'No' }}
+              </span>
+            </div>
+            }
+            @if (clientInterested(call) !== null) {
+            <div class="protocol-cell">
+              <span>Cliente interesado</span>
+              <span class="pill" [class.ok]="clientInterested(call)" [class.no]="!clientInterested(call)">
+                {{ clientInterested(call) ? 'Sí' : 'No' }}
+              </span>
+            </div>
+            }
+            @if (noInterestReason(call); as reason) {
+            <div class="protocol-cell wide">
+              <span>Motivo de no interés</span>
+              <span class="protocol-value emphasis">{{ reason }}</span>
+            </div>
+            }
+          </div>
+
+          @if (call.durationSeconds != null) {
+          <div class="manual-duration">
+            <span class="metric-label">Duración registrada</span>
+            <span class="metric-value">{{ call.durationSeconds }}<small> seg</small></span>
+          </div>
+          }
+
+          @if (call.summary) {
+          <div class="manual-notes-block">
+            <h5>Notas del asesor</h5>
+            <p>{{ call.summary }}</p>
+          </div>
+          }
+        </section>
+        } @else {
         <div class="stats">
           <div class="kpi">
             <span class="kpi-value">{{ call.durationSeconds ?? '—' }}</span>
@@ -461,7 +592,6 @@
         </div>
         }
 
-        @if (!isManual(call)) {
         <div class="subcard">
           <h5>Grabación</h5>
           @if (hasRecordingAvailable(call)) {
@@ -490,11 +620,6 @@
           </div>
         </div>
         }
-        } @else {
-        <div class="subcard">
-          <h5>Contacto del asesor</h5>
-          <p class="muted">Registro manual sin grabación ni transcripción automática.</p>
-        </div>
         }
         } @else {
         <p class="empty-detail">Selecciona un contacto del historial.</p>

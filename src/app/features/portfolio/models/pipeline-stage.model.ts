@@ -1,4 +1,4 @@
-export type StepStatus = 'pending' | 'in_progress' | 'completed' | 'blocked';
+export type StepStatus = 'pending' | 'in_progress' | 'completed' | 'blocked' | 'failed';
 
 export type PipelineStageId =
   | 'calls'

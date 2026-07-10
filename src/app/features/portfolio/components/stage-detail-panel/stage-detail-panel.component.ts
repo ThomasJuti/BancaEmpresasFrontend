@@ -5,7 +5,7 @@ import { CompanyPipeline } from '../../models/portfolio-company.model';
 import { resolveStageActions } from '../../utils/pipeline-builder';
 import { canOpenPowerApp } from '../../utils/pipeline-access.util';
 import { stepStatusLabel } from '../../utils/follow-up.util';
-import { CompanyCallsPanelComponent } from '../company-calls-panel/company-calls-panel.component';
+import { CompanyCallsPanelComponent, CallsChangedEvent } from '../company-calls-panel/company-calls-panel.component';
 
 @Component({
   selector: 'app-stage-detail-panel',
@@ -25,7 +25,7 @@ export class StageDetailPanelComponent {
   @Input() callsCount = 0;
   @Output() actionRequested = new EventEmitter<PipelineAction>();
   @Output() expandedSubStepChange = new EventEmitter<string | null>();
-  @Output() callsChanged = new EventEmitter<void>();
+  @Output() callsChanged = new EventEmitter<CallsChangedEvent | void>();
 
   statusLabel = stepStatusLabel;
 
@@ -83,6 +83,14 @@ export class StageDetailPanelComponent {
     this.expandedSubStepChange.emit('contact');
   }
 
+  onCallsChanged(event?: CallsChangedEvent | void): void {
+    this.callsChanged.emit(event);
+  }
+
+  onOpenRecording(): void {
+    this.expandedSubStepChange.emit('recording');
+  }
+
   companyNit(): string {
     return this.pipeline.clienteId ?? this.pipeline.nit;
   }
@@ -94,7 +102,13 @@ export class StageDetailPanelComponent {
     return `(${this.callsCount} contactos)`;
   }
 
-  subStepDescription(stepId: string, defaultDescription: string): string {
+  subStepDescription(stepId: string, defaultDescription: string, stepStatus?: string): string {
+    if (stepId === 'benefits' && stepStatus === 'failed') {
+      return 'No se confirmó la presentación de beneficios en el contacto.';
+    }
+    if (stepId === 'acceptance' && stepStatus === 'failed') {
+      return 'El cliente no aceptó la oferta o no se detectó interés.';
+    }
     if (stepId !== 'recording' || !this.isRecordingAccessible()) {
       return defaultDescription;
     }

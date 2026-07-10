@@ -99,6 +99,22 @@
   padding-bottom: 0;
 }
 
+.check-item[data-status='failed'] .check-icon {
+  border-color: var(--peligro);
+  background: #fdeaea;
+  color: var(--peligro);
+}
+
+.check-item[data-status='failed'] .check-top-main strong {
+  color: #b42318;
+}
+
+.fail-mark {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .check-item[data-status='pending'] .check-body p,
 .check-item[data-status='pending'] .check-top-main strong {
   color: var(--muted);

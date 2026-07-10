@@ -31,6 +31,7 @@ import {
 import {
   clientInterested,
   identityVerified,
+  isCallProcessing,
   isManualCall,
 } from '../../../shared/utils/call-display.util';
 import { matchesNit } from '../../../shared/utils/nit.util';
@@ -128,15 +129,16 @@ export class HttpPortfolioRepository implements PortfolioRepository {
     return forkJoin({
       detail: this.fetchClienteDetail(companyId),
       calls: this.listCallsSafe(),
+      pipelineCase: this.fetchPipelineCase(companyId),
     }).pipe(
-      switchMap(({ detail, calls }) => {
-        const pipelineCase$ = detail.pipelineCase
-          ? of(detail.pipelineCase)
+      switchMap(({ detail, calls, pipelineCase }) => {
+        const pipelineCase$ = pipelineCase
+          ? of(pipelineCase)
           : this.ensurePipelineCase(companyId);
 
         return pipelineCase$.pipe(
-          map((pipelineCase) => {
-            const pipeline = this.toPipeline(detail.cliente, pipelineCase ?? undefined);
+          map((resolvedCase) => {
+            const pipeline = this.toPipeline(detail.cliente, resolvedCase ?? undefined);
             applyCallState(pipeline, this.callStateFor(detail.cliente.clienteId, calls));
             this.cache.set(pipeline.id, pipeline);
             return structuredClone(pipeline);
@@ -191,6 +193,17 @@ export class HttpPortfolioRepository implements PortfolioRepository {
     );
   }
 
+  private fetchPipelineCase(leadId: string): Observable<PipelineCaseDto | null> {
+    return this.http
+      .get<PipelineCaseResponse>(
+        `${PIPELINE_API}/cases/by-lead/${encodeURIComponent(leadId)}`,
+      )
+      .pipe(
+        map((response) => response.case),
+        catchError(() => of(null)),
+      );
+  }
+
   private ensurePipelineCase(leadId: string): Observable<PipelineCaseDto | null> {
     const params = new HttpParams().set('ensure', 'true');
     return this.http
@@ -225,6 +238,7 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       identityVerified: identityVerified(latest),
       clientInterested: clientInterested(latest),
       isManual: isManualCall(latest),
+      processing: isCallProcessing(latest),
       at: latest.updatedAt,
       callId: latest.id,
     };
