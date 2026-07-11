@@ -3,16 +3,8 @@ import { Routes } from '@angular/router';
 export const PORTFOLIO_ROUTES: Routes = [
   {
     path: '',
-    redirectTo: 'pendientes',
+    redirectTo: 'pipeline',
     pathMatch: 'full',
-  },
-  {
-    path: 'pendientes',
-    loadComponent: () =>
-      import('./components/portfolio-list-page/portfolio-list-page.component').then(
-        (m) => m.PortfolioListPageComponent,
-      ),
-    data: { section: 'pending_calls' },
   },
   {
     path: 'pipeline',
@@ -20,7 +12,6 @@ export const PORTFOLIO_ROUTES: Routes = [
       import('./components/portfolio-list-page/portfolio-list-page.component').then(
         (m) => m.PortfolioListPageComponent,
       ),
-    data: { section: 'pipeline' },
   },
   {
     path: ':companyId',

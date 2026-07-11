@@ -11,7 +11,9 @@ import { PIPELINE_STAGE_ORDER, PipelineStage, PipelineStageId } from '../../mode
 })
 export class PipelineStepperComponent {
   @Input({ required: true }) stages!: PipelineStage[];
-  @Input({ required: true }) selectedStageId!: PipelineStageId;
+  // Acepta '' para el caso "sin selección" (p. ej. filtro "Todas" en la lista);
+  // el detalle siempre pasa una etapa real.
+  @Input({ required: true }) selectedStageId!: PipelineStageId | '';
   @Output() stageSelected = new EventEmitter<PipelineStageId>();
 
   readonly order = PIPELINE_STAGE_ORDER;

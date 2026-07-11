@@ -1,6 +1,6 @@
 <header class="page-header">
-  <h1 class="page-title">{{ pageTitle() }}</h1>
-  <p class="page-subtitle">{{ pageSubtitle() }}</p>
+  <h1 class="page-title">{{ pageTitle }}</h1>
+  <p class="page-subtitle">{{ pageSubtitle }}</p>
 </header>
 
 @if (loading()) {
@@ -8,64 +8,24 @@
 } @else if (error()) {
 <p class="state error">{{ error() }}</p>
 } @else {
-@if (isPipelineSection() && kpis(); as k) {
-<div class="kpi-grid">
-  <div class="kpi-card">
-    <div class="kpi-icon info">
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-        <rect x="4" y="6" width="16" height="14" rx="2" /><path d="M9 6V4h6v2" />
-      </svg>
-    </div>
-    <div class="kpi-value">{{ k.sold }}</div>
-    <div class="kpi-caption">Empresas vendidas</div>
+<section class="stage-flow" aria-label="Filtrar por etapa del pipeline">
+  <div class="stage-flow-head">
+    <span class="stage-flow-label">Filtrar por etapa</span>
+    <button
+      type="button"
+      class="stage-chip"
+      [class.is-active]="isStageFilterActive('')"
+      (click)="onStageFilterChange('')"
+    >
+      Todas
+    </button>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-icon alert">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round">
-        <path d="M12 3 2 20h20L12 3z" /><line x1="12" y1="10" x2="12" y2="14" />
-      </svg>
-    </div>
-    <div class="kpi-value">{{ k.inFollowUp }}</div>
-    <div class="kpi-caption">En seguimiento</div>
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-icon success">
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-        <path d="M20 6 9 17l-5-5" />
-      </svg>
-    </div>
-    <div class="kpi-value">{{ k.activated }}</div>
-    <div class="kpi-caption">Activadas</div>
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-icon danger">
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-        <circle cx="12" cy="12" r="9" /><line x1="12" y1="8" x2="12" y2="12" /><circle cx="12" cy="16" r="0.5" fill="currentColor" />
-      </svg>
-    </div>
-    <div class="kpi-value">{{ k.atRisk }}</div>
-    <div class="kpi-caption">En riesgo de cancelación</div>
-  </div>
-</div>
-}
-
-@if (isPendingSection()) {
-<div class="pending-hero">
-  <div class="pending-hero-copy">
-    <p class="pending-hero-title">{{ total() }} empresa(s) pendientes de contacto</p>
-    <p class="pending-hero-subtitle">
-      En esta página: <strong>{{ pendingCallableOnPage() }}</strong> con teléfono listo
-      @if (pendingMissingPhoneOnPage() > 0) {
-      · <strong>{{ pendingMissingPhoneOnPage() }}</strong> sin teléfono
-      }
-    </p>
-  </div>
-  <p class="pending-hero-tip">
-    <strong>Llamar</strong> inicia el contacto automático al instante.
-    <strong>Contactar</strong> abre la ficha con historial y registro manual.
-  </p>
-</div>
-}
+  <app-pipeline-stepper
+    [stages]="filterStages()"
+    [selectedStageId]="stageFilter()"
+    (stageSelected)="onStageFilterChange($event)"
+  ></app-pipeline-stepper>
+</section>
 
 <div class="toolbar">
   <div class="search-wrap">
@@ -86,33 +46,9 @@
       </button>
     </div>
   </div>
-
-  @if (isPipelineSection()) {
-  <div class="stage-filters" role="group" aria-label="Filtrar por etapa del pipeline">
-    <span class="stage-filters-label">Etapa</span>
-    <button
-      type="button"
-      class="stage-chip"
-      [class.is-active]="isStageFilterActive('')"
-      (click)="onStageFilterChange('')"
-    >
-      Todas
-    </button>
-    @for (stageId of stageOrder; track stageId) {
-    <button
-      type="button"
-      class="stage-chip"
-      [class.is-active]="isStageFilterActive(stageId)"
-      (click)="onStageFilterChange(stageId)"
-    >
-      {{ stageLabels[stageId] }}
-    </button>
-    }
-  </div>
-  }
 </div>
 
-@if (isPendingSection() && selectedCount() > 0) {
+@if (selectedCount() > 0) {
 <div class="bulk-bar">
   <span class="bulk-info">{{ selectedCount() }} seleccionada(s)</span>
   <button
@@ -127,20 +63,10 @@
 }
 
 @if (companies().length === 0) {
-<p class="state">
-  @if (isPendingSection()) {
-  No hay empresas pendientes de contacto que coincidan con la búsqueda.
-  } @else {
-  No hay empresas en gestión que coincidan con los filtros.
-  }
-</p>
+<p class="state">No hay empresas que coincidan con los filtros.</p>
 } @else {
 <div class="data-table-card">
-  <div
-    class="data-table-head"
-    [style.grid-template-columns]="isPendingSection() ? '0.4fr 2fr 1.2fr 1fr 1.5fr' : '0.4fr 2fr 1.2fr 1.4fr 0.8fr 1fr 1fr 1.1fr'"
-  >
-    @if (isPendingSection()) {
+  <div class="data-table-head" [style.grid-template-columns]="tableColumns">
     <div>
       <input
         type="checkbox"
@@ -151,30 +77,20 @@
     </div>
     <div>Empresa</div>
     <div>NIT</div>
-    <div>Teléfono</div>
-    <div>Acción</div>
-    } @else {
-    <div></div>
-    <div>Empresa</div>
-    <div>NIT</div>
     <div>Etapa actual</div>
     <div>Avance</div>
-    <div>Envío tarjeta</div>
-    <div>Activación</div>
     <div>Acción</div>
-    }
   </div>
   @for (company of companies(); track company.id) {
   <div
     class="data-table-row"
-    [style.grid-template-columns]="isPendingSection() ? '0.4fr 2fr 1.2fr 1fr 1.5fr' : '0.4fr 2fr 1.2fr 1.4fr 0.8fr 1fr 1fr 1.1fr'"
-    [class.row-selected]="isPendingSection() && isSelected(company)"
+    [style.grid-template-columns]="tableColumns"
+    [class.row-selected]="isSelected(company)"
     (click)="openCompany(company)"
     (keydown.enter)="openCompany(company)"
     tabindex="0"
     role="button"
   >
-    @if (isPendingSection()) {
     <div (click)="$event.stopPropagation()">
       <input
         type="checkbox"
@@ -190,14 +106,8 @@
       }
     </div>
     <div class="muted">{{ company.nit }}</div>
-    <div class="phone-cell">
-      @if (hasPhone(company)) {
-      <span class="phone-badge phone-badge-ready">Listo</span>
-      <span class="phone-value">{{ company.phone }}</span>
-      } @else {
-      <span class="phone-badge phone-badge-missing">Sin teléfono</span>
-      }
-    </div>
+    <div class="muted">{{ company.currentStageLabel }}</div>
+    <div class="muted">{{ company.progressPercent }}%</div>
     <div class="action-cell action-cell-pending" (click)="$event.stopPropagation()">
       <div class="action-option">
         <button
@@ -218,30 +128,14 @@
         <button
           type="button"
           class="btn-call btn-call-ready"
-          title="Abre historial, registro manual y protocolo"
-          (click)="contactCompany(company, $event)"
+          title="Abre el detalle del pipeline"
+          (click)="openCompany(company)"
         >
-          Contactar
+          Ver detalle
         </button>
-        <span class="action-hint">Ver ficha</span>
+        <span class="action-hint">Pipeline</span>
       </div>
     </div>
-    } @else {
-    <div></div>
-    <div><strong>{{ company.name }}</strong></div>
-    <div class="muted">{{ company.nit }}</div>
-    <div class="muted">{{ company.currentStageLabel }}</div>
-    <div class="muted">{{ company.progressPercent }}%</div>
-    <div class="muted">{{ company.cardShippedAt ? (company.cardShippedAt | date: 'mediumDate') : '—' }}</div>
-    <div>
-      <span class="badge" [attr.data-status]="badgeStatus(company.activationStatus)">
-        {{ statusLabel(company.activationStatus) }}
-      </span>
-    </div>
-    <div class="action-cell" (click)="$event.stopPropagation()">
-      <a class="link-action" [routerLink]="['/portafolio', company.id]" (click)="$event.stopPropagation()">Ver detalle ›</a>
-    </div>
-    }
   </div>
   }
 

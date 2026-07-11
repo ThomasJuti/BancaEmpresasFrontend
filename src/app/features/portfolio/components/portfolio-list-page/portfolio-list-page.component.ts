@@ -1,66 +1,66 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { BatchLead, SalesCallsService } from '../../../../core/services/sales-calls.service';
 import { isValidE164, toE164 } from '../../../../shared/utils/phone.util';
-import { PIPELINE_STAGE_LABELS, PIPELINE_STAGE_ORDER, PipelineStageId } from '../../models/pipeline-stage.model';
-import { PortfolioCompanySummary, PortfolioKpis } from '../../models/portfolio-company.model';
-import { PortfolioListSection, PortfolioRepository, PORTFOLIO_REPOSITORY } from '../../models/portfolio.repository';
-import { activationStatusLabel } from '../../utils/follow-up.util';
+import {
+  PIPELINE_STAGE_LABELS,
+  PIPELINE_STAGE_ORDER,
+  PipelineStage,
+  PipelineStageId,
+} from '../../models/pipeline-stage.model';
+import { PortfolioCompanySummary } from '../../models/portfolio-company.model';
+import { PortfolioRepository, PORTFOLIO_REPOSITORY } from '../../models/portfolio.repository';
+import { PipelineStepperComponent } from '../pipeline-stepper/pipeline-stepper.component';
 
 const PAGE_SIZE = 10;
-const SEARCH_DEBOUNCE_MS = 300;
 
 type CallScope = 'single' | 'batch';
 
 @Component({
   selector: 'app-portfolio-list-page',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, FormsModule, PipelineStepperComponent],
   templateUrl: './portfolio-list-page.component.html',
   styleUrls: ['./portfolio-list-page.component.css'],
 })
-export class PortfolioListPageComponent implements OnInit, OnDestroy {
+export class PortfolioListPageComponent implements OnInit {
   private readonly repository = inject<PortfolioRepository>(PORTFOLIO_REPOSITORY);
   private readonly salesCalls = inject(SalesCallsService);
   private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
 
   readonly pageSize = PAGE_SIZE;
   readonly companies = signal<PortfolioCompanySummary[]>([]);
-  readonly kpis = signal<PortfolioKpis | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly searchQuery = signal('');
   readonly page = signal(1);
   readonly total = signal(0);
-  readonly section = signal<PortfolioListSection>('pending_calls');
   readonly stageFilter = signal<PipelineStageId | ''>('');
 
-  readonly stageOrder = PIPELINE_STAGE_ORDER;
-  readonly stageLabels = PIPELINE_STAGE_LABELS;
+  readonly pageTitle = 'En gestión';
+  readonly pageSubtitle =
+    'Portafolio de empresas. Filtra por etapa, selecciona varias para una campaña de llamadas o abre el detalle de cada una.';
 
-  readonly isPendingSection = computed(() => this.section() === 'pending_calls');
-  readonly isPipelineSection = computed(() => this.section() === 'pipeline');
+  // checkbox · Empresa · NIT · Etapa actual · Avance · Acción
+  readonly tableColumns = '0.4fr 2fr 1.2fr 1.4fr 0.8fr 1.6fr';
 
-  readonly pendingCallableOnPage = computed(
-    () => this.companies().filter((c) => this.hasPhone(c)).length,
-  );
-
-  readonly pendingMissingPhoneOnPage = computed(
-    () => this.companies().length - this.pendingCallableOnPage(),
-  );
-
-  readonly pageTitle = computed(() =>
-    this.isPendingSection() ? 'Por llamar' : 'En gestión',
-  );
-
-  readonly pageSubtitle = computed(() =>
-    this.isPendingSection()
-      ? 'Empresas pendientes de contacto. Abre cada empresa para gestionar llamadas.'
-      : 'Empresas con contacto realizado o en proceso de colocación.',
-  );
+  // Stepper de checks verdes reutilizado como filtro por etapa: las etapas
+  // anteriores a la seleccionada se muestran completadas (verde) para dar el
+  // efecto de "flujo"; la seleccionada queda resaltada por el propio stepper.
+  readonly filterStages = computed<PipelineStage[]>(() => {
+    const active = this.stageFilter();
+    const activeIndex = active ? PIPELINE_STAGE_ORDER.indexOf(active) : -1;
+    return PIPELINE_STAGE_ORDER.map((id, index) => ({
+      id,
+      order: index + 1,
+      title: PIPELINE_STAGE_LABELS[id],
+      status: activeIndex >= 0 && index < activeIndex ? 'completed' : 'pending',
+      subSteps: [],
+      actions: [],
+    }));
+  });
 
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.total() / PAGE_SIZE)));
   readonly rangeStart = computed(() => (this.total() === 0 ? 0 : (this.page() - 1) * PAGE_SIZE + 1));
@@ -94,36 +94,8 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
 
   readonly editablePhoneValid = computed(() => isValidE164(toE164(this.editablePhone())));
 
-  private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-  statusLabel = activationStatusLabel;
-
   ngOnInit(): void {
-    const initialSection =
-      (this.route.snapshot.data['section'] as PortfolioListSection | undefined) ?? 'pending_calls';
-    this.section.set(initialSection);
-
-    this.route.data.subscribe((data) => {
-      const nextSection = (data['section'] as PortfolioListSection | undefined) ?? 'pending_calls';
-      if (nextSection === this.section()) {
-        return;
-      }
-      this.section.set(nextSection);
-      this.stageFilter.set('');
-      this.page.set(1);
-      this.searchQuery.set('');
-      this.selectedIds.set(new Set());
-      this.load();
-    });
-
-    this.loadKpis();
     this.load();
-  }
-
-  ngOnDestroy(): void {
-    if (this.searchDebounceTimer) {
-      clearTimeout(this.searchDebounceTimer);
-    }
   }
 
   load(): void {
@@ -136,7 +108,6 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
         page: this.page(),
         pageSize: PAGE_SIZE,
         search: this.searchQuery().trim() || undefined,
-        section: this.section(),
         stage: this.stageFilter() || undefined,
       })
       .subscribe({
@@ -153,31 +124,12 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
       });
   }
 
-  private loadKpis(): void {
-    this.repository.getKpis().subscribe({
-      next: (kpis) => this.kpis.set(kpis),
-    });
-  }
-
   onSearchInput(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.searchQuery.set(value);
-
-    if (this.searchDebounceTimer) {
-      clearTimeout(this.searchDebounceTimer);
-    }
-
-    this.searchDebounceTimer = setTimeout(() => {
-      this.page.set(1);
-      this.load();
-    }, SEARCH_DEBOUNCE_MS);
+    // Solo actualiza el texto; la búsqueda se dispara con Enter o el botón.
+    this.searchQuery.set((event.target as HTMLInputElement).value);
   }
 
   onSearchSubmit(): void {
-    if (this.searchDebounceTimer) {
-      clearTimeout(this.searchDebounceTimer);
-      this.searchDebounceTimer = null;
-    }
     this.page.set(1);
     this.load();
   }
@@ -218,25 +170,7 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
   }
 
   openCompany(company: PortfolioCompanySummary): void {
-    void this.router.navigate(['/portafolio', company.id], {
-      queryParams: { origen: this.listOrigin() },
-    });
-  }
-
-  contactCompany(company: PortfolioCompanySummary, event?: Event): void {
-    event?.stopPropagation();
-    const queryParams: Record<string, string> = {
-      etapa: 'calls',
-      origen: this.listOrigin(),
-    };
-    if (company.hasCall) {
-      queryParams['historial'] = '1';
-    }
-    void this.router.navigate(['/portafolio', company.id], { queryParams });
-  }
-
-  private listOrigin(): 'pendientes' | 'pipeline' {
-    return this.isPendingSection() ? 'pendientes' : 'pipeline';
+    void this.router.navigate(['/portafolio', company.id]);
   }
 
   isSelected(company: PortfolioCompanySummary): boolean {
@@ -293,13 +227,6 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
     } else {
       this.confirmBatchCall();
     }
-  }
-
-  badgeStatus(status: string): string {
-    if (status === 'activated') return 'activated';
-    if (status === 'at_risk') return 'at_risk';
-    if (status === 'cancelled') return 'cancelled';
-    return 'pending';
   }
 
   hasPhone(company: PortfolioCompanySummary): boolean {

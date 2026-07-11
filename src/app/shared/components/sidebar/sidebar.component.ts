@@ -24,7 +24,6 @@ export class SidebarComponent {
   private readonly router = inject(Router);
 
   readonly items: NavItem[] = [
-    { label: 'Por llamar', icon: 'phone-list', route: '/portafolio/pendientes', exact: true },
     { label: 'En gestión', icon: 'portfolio', route: '/portafolio/pipeline', exact: true },
     { label: 'Entregas', icon: 'box', route: '' },
     { label: 'Seguimiento', icon: 'star', route: '/seguimiento' },

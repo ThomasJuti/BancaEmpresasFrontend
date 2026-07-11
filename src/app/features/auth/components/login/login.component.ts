@@ -24,7 +24,7 @@ export class LoginComponent {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/portafolio/pendientes';
+      const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/portafolio/pipeline';
       await this.auth.loginWithGoogle(returnUrl);
 
       // En local la sesión se crea sin redirect; en producción el navegador sale hacia Google.

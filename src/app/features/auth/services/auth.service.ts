@@ -35,7 +35,7 @@ export class AuthService {
    * Inicia sesión. En producción redirige a Google vía Supabase; en local
    * resuelve de inmediato sin salir de localhost.
    */
-  async loginWithGoogle(returnUrl = '/portafolio/pendientes'): Promise<void> {
+  async loginWithGoogle(returnUrl = '/portafolio/pipeline'): Promise<void> {
     if (!environment.production) {
       this._user.set({ name: 'Usuario local', email: 'dev@local' });
       return;

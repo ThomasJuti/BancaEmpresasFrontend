@@ -27,8 +27,8 @@ export const routes: Routes = [
     component: MainLayoutComponent,
     canActivate: [authGuard],
     children: [
-      { path: '', redirectTo: 'portafolio/pendientes', pathMatch: 'full' },
-      { path: 'llamadas', redirectTo: 'portafolio/pendientes', pathMatch: 'full' },
+      { path: '', redirectTo: 'portafolio/pipeline', pathMatch: 'full' },
+      { path: 'llamadas', redirectTo: 'portafolio/pipeline', pathMatch: 'full' },
       {
         path: 'portafolio',
         loadChildren: () =>

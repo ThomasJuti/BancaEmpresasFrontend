@@ -67,24 +67,14 @@ export class CompanyPipelinePageComponent implements OnInit {
     return p.stages.find((s) => s.id === this.selectedStageId()) ?? null;
   });
 
-  readonly backUrl = computed(() =>
-    this.listOrigin() === 'pendientes' ? '/portafolio/pendientes' : '/portafolio/pipeline',
-  );
-
-  readonly backLabel = computed(() =>
-    this.listOrigin() === 'pendientes' ? '← Volver a por llamar' : '← Volver a en gestión',
-  );
-
-  private readonly listOrigin = signal<'pendientes' | 'pipeline'>('pipeline');
+  readonly backUrl = '/portafolio/pipeline';
+  readonly backLabel = '← Volver a en gestión';
 
   statusLabel = activationStatusLabel;
   stepLabel = stepStatusLabel;
 
   ngOnInit(): void {
     this.route.queryParamMap.subscribe((query) => {
-      const origen = query.get('origen');
-      this.listOrigin.set(origen === 'pendientes' ? 'pendientes' : 'pipeline');
-
       const etapa = query.get('etapa') as PipelineStageId | null;
       const accion = query.get('accion');
       if (etapa && ['calls', 'power_app', 'operations', 'card_delivery', 'follow_up'].includes(etapa)) {
