@@ -221,20 +221,10 @@ export function isCallTerminal(call: Pick<CallDetail, 'status'>): boolean {
 }
 
 export function isCallQualifiedForPipeline(call: CallDetail): boolean {
-  if (call.status !== 'completed') {
-    return false;
-  }
-
-  const identidad = identityVerified(call);
-  const interesado = clientInterested(call);
-  if (identidad === true && interesado === true) {
+  if (isCallSuccess(call.successEvaluation)) {
     return true;
   }
-
-  // Misma regla que backend qualification.ts: successEvaluation positiva
-  // sin señales negativas explícitas de identidad/interés.
-  const success = isCallSuccess(call.successEvaluation);
-  return success && identidad !== false && interesado !== false;
+  return identityVerified(call) === true && clientInterested(call) === true;
 }
 
 export function manualNotesPreview(call: CallDetail, maxLen = 60): string | null {

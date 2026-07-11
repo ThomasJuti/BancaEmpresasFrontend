@@ -32,7 +32,6 @@ import {
   clientInterested,
   identityVerified,
   isCallProcessing,
-  isCallQualifiedForPipeline,
   isManualCall,
 } from '../../../shared/utils/call-display.util';
 import { matchesNit } from '../../../shared/utils/nit.util';
@@ -235,7 +234,7 @@ export class HttpPortfolioRepository implements PortfolioRepository {
     return {
       status: latest.status,
       hasRecording: !!latest.recordingUrl || (!isManualCall(latest) && latest.status === 'completed'),
-      qualified: isCallQualifiedForPipeline(latest),
+      qualified: this.isQualified(latest),
       identityVerified: identityVerified(latest),
       clientInterested: clientInterested(latest),
       isManual: isManualCall(latest),
@@ -243,6 +242,13 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       at: latest.updatedAt,
       callId: latest.id,
     };
+  }
+
+  private isQualified(call: CallDetail): boolean {
+    if (call.successEvaluation === true || call.successEvaluation === 'true' || call.successEvaluation === 'Verdadero') {
+      return true;
+    }
+    return identityVerified(call) === true && clientInterested(call) === true;
   }
 
   executeAction(companyId: string, stageId: string, actionId: string): Observable<ActionResult> {

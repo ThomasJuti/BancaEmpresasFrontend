@@ -24,7 +24,6 @@ export interface BatchLead {
   customerName?: string;
   customerEmail?: string;
   variables?: Record<string, string>;
-  caseId?: string;
 }
 
 export interface CreateBatchRequest {
@@ -90,14 +89,6 @@ export interface RegisterManualCallRequest {
   durationSeconds?: number;
 }
 
-export interface SyncPipelineFromCallResult {
-  callId: string;
-  caseId: string;
-  stage: string;
-  advanced: boolean;
-  alreadyAtOrPastPowerApps: boolean;
-}
-
 @Injectable({ providedIn: 'root' })
 export class SalesCallsService {
   private readonly http = inject(HttpClient);
@@ -120,17 +111,6 @@ export class SalesCallsService {
 
   registerManual(request: RegisterManualCallRequest): Observable<CallDetail> {
     return this.http.post<CallDetail>(`${SALES_CALLS_API}/calls/manual`, request);
-  }
-
-  /**
-   * Recuperación idempotente: si la llamada calificó pero el pipeline no avanzó
-   * a power_apps, fuerza el sync (p. ej. llamadas históricas sin caseId).
-   */
-  syncPipelineFromCall(callId: string): Observable<SyncPipelineFromCallResult> {
-    return this.http.post<SyncPipelineFromCallResult>(
-      `${SALES_CALLS_API}/calls/${encodeURIComponent(callId)}/sync-pipeline`,
-      {},
-    );
   }
 
   recordingUrl(callId: string): string {
