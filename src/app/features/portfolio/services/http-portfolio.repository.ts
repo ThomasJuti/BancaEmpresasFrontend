@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { catchError, forkJoin, map, Observable, of, switchMap, throwError } from 'rxjs';
-import { DELIVERY_CONFIRMATION_API, FILE_MATCHING_API, PIPELINE_API } from '../../../core/config/api.config';
+import { FILE_MATCHING_API, PIPELINE_API } from '../../../core/config/api.config';
 import { CallDetail, SalesCallsService } from '../../../core/services/sales-calls.service';
 import { PipelineCaseDto, PipelineCaseResponse } from '../models/pipeline-case.model';
 import { isPowerAppStageCompleted, mapBackendStageToFrontend } from '../utils/pipeline-case.mapper';
@@ -137,20 +137,12 @@ export class HttpPortfolioRepository implements PortfolioRepository {
           : this.ensurePipelineCase(companyId);
 
         return pipelineCase$.pipe(
-          switchMap((resolvedCase) =>
-            this.fetchDeliveryConfirmed(resolvedCase).pipe(
-              map((deliveryConfirmed) => {
-                const pipeline = this.toPipeline(
-                  detail.cliente,
-                  resolvedCase ?? undefined,
-                  deliveryConfirmed,
-                );
-                applyCallState(pipeline, this.callStateFor(detail.cliente.clienteId, calls));
-                this.cache.set(pipeline.id, pipeline);
-                return structuredClone(pipeline);
-              }),
-            ),
-          ),
+          map((resolvedCase) => {
+            const pipeline = this.toPipeline(detail.cliente, resolvedCase ?? undefined);
+            applyCallState(pipeline, this.callStateFor(detail.cliente.clienteId, calls));
+            this.cache.set(pipeline.id, pipeline);
+            return structuredClone(pipeline);
+          }),
         );
       }),
     );
@@ -212,27 +204,6 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       );
   }
 
-  /**
-   * ¿La entrega física ya fue confirmada por el gerente? Distingue, dentro de la
-   * etapa backend `delivery_confirmation`, "Operaciones y envío" (esperando
-   * confirmación) de "Tarjeta y acuse" (confirmada). Tolerante a fallos: sin caso
-   * de entrega o ante error, se asume no confirmada.
-   */
-  private fetchDeliveryConfirmed(pipelineCase?: PipelineCaseDto | null): Observable<boolean> {
-    // Solo tiene sentido en la etapa de entrega; fuera de ella no hay caso que consultar.
-    if (!pipelineCase || pipelineCase.stage !== 'delivery_confirmation') {
-      return of(false);
-    }
-    return this.http
-      .get<{ status: string }>(
-        `${DELIVERY_CONFIRMATION_API}/cases/${encodeURIComponent(pipelineCase.id)}`,
-      )
-      .pipe(
-        map((res) => res.status === 'confirmed'),
-        catchError(() => of(false)),
-      );
-  }
-
   private ensurePipelineCase(leadId: string): Observable<PipelineCaseDto | null> {
     const params = new HttpParams().set('ensure', 'true');
     return this.http
@@ -290,20 +261,10 @@ export class HttpPortfolioRepository implements PortfolioRepository {
     return of({ success: true, message, pipeline: structuredClone(pipeline) });
   }
 
-  private toPipeline(
-    cliente: ClienteFinalDto,
-    pipelineCase?: PipelineCaseDto,
-    deliveryConfirmed = false,
-  ): CompanyPipeline {
-    let currentStageId = pipelineCase
+  private toPipeline(cliente: ClienteFinalDto, pipelineCase?: PipelineCaseDto): CompanyPipeline {
+    const currentStageId = pipelineCase
       ? mapBackendStageToFrontend(pipelineCase.stage)
       : INITIAL_STAGE;
-    // Dentro de `delivery_confirmation`, la entrega confirmada por el gerente
-    // avanza el stepper a "Tarjeta y acuse" (Tarjeta fabricada); mientras espera
-    // confirmación, se queda en "Operaciones y envío".
-    if (pipelineCase?.stage === 'delivery_confirmation' && deliveryConfirmed) {
-      currentStageId = 'card_delivery';
-    }
     const powerAppSubmitted = pipelineCase ? isPowerAppStageCompleted(pipelineCase.stage) : false;
     const deliveryFinalized =
       pipelineCase?.stage === 'activation_follow_up' || pipelineCase?.stage === 'completed';
