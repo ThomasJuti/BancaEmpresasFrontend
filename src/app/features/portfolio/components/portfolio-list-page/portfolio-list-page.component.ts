@@ -320,6 +320,7 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
         customerName: company.representanteLegalNombre ?? company.name,
         customerEmail: company.email ?? undefined,
         variables: this.callContext(company),
+        caseId: company.pipelineCaseId,
       })
       .subscribe({
         next: (call) => {
@@ -346,6 +347,7 @@ export class PortfolioListPageComponent implements OnInit, OnDestroy {
       customerName: company.representanteLegalNombre ?? company.name,
       customerEmail: company.email ?? undefined,
       variables: this.callContext(company),
+      caseId: company.pipelineCaseId,
     }));
 
     const name = `Campaña por llamar ${new Date().toLocaleString('es-CO')}`;

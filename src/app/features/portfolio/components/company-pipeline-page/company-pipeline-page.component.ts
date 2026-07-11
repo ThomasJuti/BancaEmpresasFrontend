@@ -1,7 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { catchError, of, switchMap, take, takeWhile, timer } from 'rxjs';
 import { FollowUpService } from '../../../../core/services/follow-up.service';
+import { SalesCallsService } from '../../../../core/services/sales-calls.service';
 import { PowerAppFormModalComponent } from '../../../power-apps/components/power-app-form-modal/power-app-form-modal.component';
 import { PowerAppSubmitResponse, StoredPowerAppSubmission } from '../../../power-apps/models/power-app-submit.model';
 import { PowerAppService } from '../../../power-apps/services/power-app.service';
@@ -11,10 +14,13 @@ import { CompanyPipeline } from '../../models/portfolio-company.model';
 import { PortfolioRepository, PORTFOLIO_REPOSITORY } from '../../models/portfolio.repository';
 import { activationStatusLabel, stepStatusLabel } from '../../utils/follow-up.util';
 import { computeProgress } from '../../utils/pipeline-builder';
-import { canOpenPowerApp, isStageReachable } from '../../utils/pipeline-access.util';
+import { canOpenPowerApp, isCallsStageComplete, isStageReachable } from '../../utils/pipeline-access.util';
 import { PipelineStepperComponent } from '../pipeline-stepper/pipeline-stepper.component';
 import { StageDetailPanelComponent } from '../stage-detail-panel/stage-detail-panel.component';
 import { CallsChangedEvent } from '../company-calls-panel/company-calls-panel.component';
+
+const POWER_APP_SYNC_POLL_MS = 3000;
+const POWER_APP_SYNC_MAX_POLLS = 11;
 
 @Component({
   selector: 'app-company-pipeline-page',
@@ -34,7 +40,11 @@ export class CompanyPipelinePageComponent implements OnInit {
   private readonly submissionStore = inject(PowerAppSubmissionStore);
   private readonly powerAppService = inject(PowerAppService);
   private readonly followUpService = inject(FollowUpService);
+  private readonly salesCalls = inject(SalesCallsService);
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
+
+  private powerAppSyncInFlight = false;
 
   readonly pipeline = signal<CompanyPipeline | null>(null);
   readonly selectedStageId = signal<PipelineStageId>('calls');
@@ -119,6 +129,7 @@ export class CompanyPipelinePageComponent implements OnInit {
         this.loading.set(false);
         this.preloadCallsHistory(restored);
         this.loadPowerAppSubmission(restored);
+        this.recoverPowerAppIfDesynced(restored);
       },
       error: () => {
         this.error.set('No se encontró la empresa solicitada.');
@@ -430,12 +441,80 @@ export class CompanyPipelinePageComponent implements OnInit {
           }
         }
 
-        if (canOpenPowerApp(updated)) {
-          this.selectedStageId.set('power_app');
-          this.showFeedback('Contacto calificado. Ya puede diligenciar la solicitud Power App.');
-        }
+        this.recoverPowerAppIfDesynced(updated, {
+          callId: payload?.callId ?? linkedId,
+        });
       },
     });
+  }
+
+  /**
+   * Si Llamadas ya está completa en UI pero Supabase aún no llegó a power_apps,
+   * fuerza sync-pipeline y reintenta el refresh (race del webhook / caseId ausente).
+   */
+  private recoverPowerAppIfDesynced(
+    pipeline: CompanyPipeline,
+    options?: { callId?: string | null },
+  ): void {
+    if (canOpenPowerApp(pipeline)) {
+      this.selectedStageId.set('power_app');
+      this.showFeedback('Contacto calificado. Ya puede diligenciar la solicitud Power App.');
+      return;
+    }
+
+    if (!isCallsStageComplete(pipeline)) {
+      return;
+    }
+
+    const callId =
+      options?.callId ??
+      pipeline.stages.find((s) => s.id === 'calls')?.linkedCallId ??
+      null;
+    if (!callId || this.powerAppSyncInFlight) {
+      return;
+    }
+
+    this.powerAppSyncInFlight = true;
+    this.salesCalls
+      .syncPipelineFromCall(callId)
+      .pipe(
+        catchError(() => of(null)),
+        switchMap(() =>
+          timer(0, POWER_APP_SYNC_POLL_MS).pipe(
+            take(POWER_APP_SYNC_MAX_POLLS),
+            switchMap(() => {
+              this.repository.invalidateCompanyCache(pipeline.id);
+              return this.repository.getCompanyPipeline(pipeline.id).pipe(
+                catchError(() => of(null)),
+              );
+            }),
+            takeWhile((refreshed) => {
+              if (!refreshed) {
+                return true;
+              }
+              const updated = this.applyStoredSubmission(refreshed);
+              this.pipeline.set(updated);
+              if (canOpenPowerApp(updated)) {
+                this.selectedStageId.set('power_app');
+                this.showFeedback(
+                  'Contacto calificado. Ya puede diligenciar la solicitud Power App.',
+                );
+                return false;
+              }
+              return true;
+            }, true),
+          ),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        complete: () => {
+          this.powerAppSyncInFlight = false;
+        },
+        error: () => {
+          this.powerAppSyncInFlight = false;
+        },
+      });
   }
 
   private applyCallsExpansion(pipeline: CompanyPipeline, historyCount: number): void {
