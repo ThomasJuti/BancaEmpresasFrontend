@@ -16,10 +16,6 @@ interface DistributionRow {
   percent: number;
 }
 
-/**
- * Vista lateral "Reportes": consolida los resultados de las llamadas de ventas
- * y del seguimiento de activación para dar estadísticas del funnel.
- */
 @Component({
   selector: 'app-reports-page',
   standalone: true,
@@ -36,7 +32,6 @@ export class ReportsPageComponent implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
-  /** KPIs de resultado de las llamadas de ventas. */
   readonly callStats = computed(() => {
     const calls = this.calls();
     const completed = calls.filter((c) => c.status === 'completed');
@@ -63,7 +58,6 @@ export class ReportsPageComponent implements OnInit {
     };
   });
 
-  /** Distribución de llamadas por estado, para las barras del reporte. */
   readonly statusDistribution = computed<DistributionRow[]>(() => {
     const calls = this.calls();
     const groups: { label: string; matches: (c: CallDetail) => boolean }[] = [
@@ -79,7 +73,6 @@ export class ReportsPageComponent implements OnInit {
       .filter((row) => row.count > 0);
   });
 
-  /** Motivos de no interés más frecuentes, ordenados de mayor a menor. */
   readonly noInterestReasons = computed<DistributionRow[]>(() => {
     const counts = new Map<string, number>();
     for (const call of this.calls()) {
@@ -94,7 +87,6 @@ export class ReportsPageComponent implements OnInit {
       .sort((a, b) => b.count - a.count);
   });
 
-  /** KPIs del seguimiento de activación de tarjetas entregadas. */
   readonly followUpStats = computed(() => {
     const cases = this.followUpCases();
     return {
@@ -105,7 +97,6 @@ export class ReportsPageComponent implements OnInit {
     };
   });
 
-  /** Distribución de los casos de seguimiento por fase de uso. */
   readonly faseDistribution = computed<DistributionRow[]>(() => {
     const cases = this.followUpCases();
     const labels: Record<FollowUpFase, string> = {
