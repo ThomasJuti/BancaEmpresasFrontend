@@ -12,8 +12,6 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     { provide: PORTFOLIO_REPOSITORY, useClass: HttpPortfolioRepository },
     {
-      // Restaura la sesión de Supabase (y procesa el redirect de OAuth) antes de
-      // que el router evalúe los guards, evitando parpadeos hacia /login.
       provide: APP_INITIALIZER,
       multi: true,
       useFactory: (auth: AuthService) => () => auth.initialize(),

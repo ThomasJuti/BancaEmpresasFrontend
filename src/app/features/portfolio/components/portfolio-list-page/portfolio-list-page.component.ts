@@ -42,12 +42,8 @@ export class PortfolioListPageComponent implements OnInit {
   readonly pageSubtitle =
     'Portafolio de empresas. Filtra por etapa, selecciona varias para una campaña de llamadas o abre el detalle de cada una.';
 
-  // checkbox · Empresa · NIT · Etapa actual · Avance · Acción
   readonly tableColumns = '0.4fr 2fr 1.2fr 1.4fr 0.8fr 1.6fr';
 
-  // Stepper de checks verdes reutilizado como filtro por etapa: las etapas
-  // anteriores a la seleccionada se muestran completadas (verde) para dar el
-  // efecto de "flujo"; la seleccionada queda resaltada por el propio stepper.
   readonly filterStages = computed<PipelineStage[]>(() => {
     const active = this.stageFilter();
     const activeIndex = active ? PIPELINE_STAGE_ORDER.indexOf(active) : -1;
@@ -124,7 +120,6 @@ export class PortfolioListPageComponent implements OnInit {
   }
 
   onSearchInput(event: Event): void {
-    // Solo actualiza el texto; la búsqueda se dispara con Enter o el botón.
     this.searchQuery.set((event.target as HTMLInputElement).value);
   }
 

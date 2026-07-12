@@ -271,11 +271,6 @@ export class CompanyPipelinePageComponent implements OnInit {
     });
   }
 
-  /**
-   * Check único del punto 5: llama al backend (idempotente). La primera vez el
-   * backend dispara la llamada de felicitación y crea el caso de seguimiento;
-   * luego se refleja el check en el pipeline local.
-   */
   private finalizeDelivery(pipeline: CompanyPipeline): void {
     this.actionLoading.set(true);
     this.followUpService
@@ -287,7 +282,6 @@ export class CompanyPipelinePageComponent implements OnInit {
       })
       .subscribe({
         next: (result) => {
-          // Refleja el check localmente (el estado durable vive en el backend).
           this.repository.executeAction(pipeline.id, 'follow_up', 'finalize_delivery').subscribe({
             next: (actionResult) => {
               if (actionResult.pipeline) {

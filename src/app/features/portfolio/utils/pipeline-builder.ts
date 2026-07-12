@@ -13,8 +13,6 @@ import {
 } from '../models/portfolio-company.model';
 import { canOpenPowerApp } from './pipeline-access.util';
 
-// Construcción del pipeline HITL de colocación (etapas, sub-pasos y acciones).
-// Compartido por HttpPortfolioRepository para evitar duplicar la definición del proceso.
 
 export function stageActions(stageId: PipelineStageId): PipelineAction[] {
   const actions: Record<PipelineStageId, PipelineAction[]> = {
@@ -146,7 +144,6 @@ export function summaryFromPipeline(pipeline: CompanyPipeline): PortfolioCompany
   return summary;
 }
 
-/** Aplica una acción del pipeline sobre la empresa (muta el objeto) y devuelve el mensaje de feedback. */
 export function applyPipelineAction(
   pipeline: CompanyPipeline,
   stageId: PipelineStageId,
@@ -190,7 +187,6 @@ export function applyPipelineAction(
       advanceStage(pipeline, 'card_delivery');
       return 'Acuse de recibido cargado (mock).';
     case 'finalize_delivery':
-      // El POST real lo hace la página (FollowUpService); aquí solo se refleja el check.
       stage.subSteps.forEach((s) => {
         s.status = 'completed';
         s.completedAt = new Date().toISOString();
@@ -207,7 +203,6 @@ export function applyPipelineAction(
   }
 }
 
-/** Estado real de la llamada de un cliente, para reflejarlo en los checks. */
 export interface CallStateInput {
   status: 'queued' | 'initiated' | 'in_progress' | 'completed' | 'failed';
   hasRecording: boolean;
@@ -250,12 +245,6 @@ function setSubStep(stage: PipelineStage, id: string, status: StepStatus, at?: s
   }
 }
 
-/**
- * Refleja el estado real de la llamada de venta en el stage `calls` (checks de
- * proceso). Solo el contacto inicial queda activo hasta que la llamada termine;
- * los checks de beneficios/aceptación dependen de las respuestas; la grabación
- * se habilita recién cuando el contacto quedó procesado (completado o fallido).
- */
 export function applyCallState(pipeline: CompanyPipeline, call: CallStateInput | undefined): void {
   const stage = pipeline.stages.find((s) => s.id === 'calls');
   if (!stage || !call) {

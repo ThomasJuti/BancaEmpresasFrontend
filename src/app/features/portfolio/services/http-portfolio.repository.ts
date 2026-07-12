@@ -32,30 +32,18 @@ import {
 } from '../../../shared/utils/call-display.util';
 import { matchesNit } from '../../../shared/utils/nit.util';
 
-// Todo lead recién cruzado entra al pipeline en la etapa de llamadas de venta.
 const INITIAL_STAGE: PipelineStageId = 'calls';
 const CLIENT_FILTER_FETCH_LIMIT = 500;
 
-/**
- * Implementación de PortfolioRepository contra el backend real.
- * Consume `GET /api/file-matching/clientes-finales` (clientes elegibles desde
- * Supabase) y los proyecta al modelo de portafolio del front. El detalle del
- * pipeline y las acciones se construyen en cliente; el avance de Power App se
- * consulta en `pipeline_cases` cuando el backend lo expone.
- */
 @Injectable()
 export class HttpPortfolioRepository implements PortfolioRepository {
   private readonly http = inject(HttpClient);
   private readonly salesCalls = inject(SalesCallsService);
   private readonly endpoint = `${FILE_MATCHING_API}/clientes-finales`;
 
-  // Pipelines construidos en la sesión, para conservar el efecto de las acciones
-  // entre navegaciones sin volver a pedir la lista al backend.
   private readonly cache = new Map<string, CompanyPipeline>();
 
   getCompanies(query: PortfolioPageQuery): Observable<PortfolioPageResult> {
-    // El filtro por etapa se resuelve en cliente (la etapa se deriva del
-    // pipeline case + llamadas), así que se trae un lote amplio y se pagina local.
     const stageFilter = query.stage;
     let params = new HttpParams();
 
@@ -198,12 +186,10 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       );
   }
 
-  /** Lista de llamadas tolerante a fallos: si el endpoint falla, no rompe el portafolio. */
   private listCallsSafe(): Observable<CallDetail[]> {
     return this.salesCalls.listCalls().pipe(catchError(() => of([] as CallDetail[])));
   }
 
-  /** Deriva el estado del stage `calls` desde la llamada más reciente del cliente (match por NIT). */
   private callStateFor(clienteId: string, calls: CallDetail[]): CallStateInput | undefined {
     const matches = calls.filter((c) => matchesNit(c.variables?.['nit'], clienteId));
     if (matches.length === 0) {
@@ -252,7 +238,6 @@ export class HttpPortfolioRepository implements PortfolioRepository {
 
     const stages = buildStages(currentStageId);
     if (deliveryFinalized) {
-      // Backend ya avanzó a activation_follow_up: el check "Cierre de entrega" está hecho.
       const followUp = stages.find((stage) => stage.id === 'follow_up');
       if (followUp) {
         followUp.status = 'completed';
@@ -266,7 +251,6 @@ export class HttpPortfolioRepository implements PortfolioRepository {
 
     return {
       id: cliente.clienteId,
-      // El Cliente_Id de una empresa es su NIT (ver contexto de negocio).
       name: cliente.nombre?.trim() || 'Empresa sin nombre',
       nit: cliente.clienteId,
       clienteId: cliente.clienteId,

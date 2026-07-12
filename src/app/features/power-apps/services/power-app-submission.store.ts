@@ -8,7 +8,6 @@ import {
 
 const STORAGE_KEY = 'power_app_submissions_v2';
 
-/** Estado de envío Power App por empresa. Usa sessionStorage para UX inmediata tras submit. */
 @Injectable({ providedIn: 'root' })
 export class PowerAppSubmissionStore {
   private readonly submissions = new Map<string, StoredPowerAppSubmission>();

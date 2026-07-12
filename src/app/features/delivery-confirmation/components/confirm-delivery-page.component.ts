@@ -53,7 +53,6 @@ export class ConfirmDeliveryPageComponent implements OnInit {
     this.service.confirm(this.token, outcome).subscribe({
       next: (result) => this.state.set(result.status === 'confirmed' ? 'confirmed' : 'retry'),
       error: (err) => {
-        // Un link ya usado o vencido: mensaje claro, sin exponer detalles internos.
         this.errorMessage.set(
           err?.error?.error?.code === 'TOKEN_ALREADY_USED'
             ? 'Este enlace ya fue utilizado.'

@@ -3,10 +3,8 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ACTIVATION_FOLLOW_UP_API } from '../config/api.config';
 
-/** Fase del seguimiento según días sin uso (la TC se inactiva a los 90 días). */
 export type FollowUpFase = 'al_dia' | 'mes_1' | 'mes_2' | 'mes_3';
 
-/** Caso de seguimiento de uso de una TC entregada (calculado por el backend). */
 export interface FollowUpCase {
   id: string;
   clienteId: string;
@@ -40,16 +38,11 @@ export interface FinalizeDeliveryResponse {
   yaExistia: boolean;
 }
 
-/**
- * Cliente HTTP de la etapa activation-follow-up (transversal: lo usan el
- * portafolio —check de entrega finalizada— y la vista lateral Seguimiento).
- */
 @Injectable({ providedIn: 'root' })
 export class FollowUpService {
   private readonly http = inject(HttpClient);
   private readonly base = ACTIVATION_FOLLOW_UP_API;
 
-  /** Check punto 5: la primera vez felicita al cliente y arranca el seguimiento. */
   finalizeDelivery(request: FinalizeDeliveryRequest): Observable<FinalizeDeliveryResponse> {
     return this.http.post<FinalizeDeliveryResponse>(`${this.base}/cases`, request);
   }
@@ -58,11 +51,6 @@ export class FollowUpService {
     return this.http.get<{ total: number; casos: FollowUpCase[] }>(`${this.base}/cases`);
   }
 
-  /**
-   * Procesa los recordatorios por inactividad vencidos (los que la cadencia
-   * exige). Lo dispara el botón "Actualizar" de Seguimiento; la cadencia del
-   * backend evita reenvíos, así que es seguro llamarlo repetidamente.
-   */
   processReminders(): Observable<{ resumen: { procesados: number; llamadasIniciadas: number; errores: number } }> {
     return this.http.post<{ resumen: { procesados: number; llamadasIniciadas: number; errores: number } }>(
       `${this.base}/cases/process-reminders`,
@@ -70,7 +58,6 @@ export class FollowUpService {
     );
   }
 
-  /** Simula un uso de la tarjeta (demo); reinicia el ciclo de recordatorios. */
   registerUsage(clienteId: string): Observable<{ caso: FollowUpCase }> {
     return this.http.post<{ caso: FollowUpCase }>(
       `${this.base}/cases/${encodeURIComponent(clienteId)}/usage`,

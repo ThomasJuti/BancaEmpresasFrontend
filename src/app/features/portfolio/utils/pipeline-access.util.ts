@@ -24,7 +24,6 @@ function frontendStageIndex(stageId: PipelineStageId): number {
   return PIPELINE_STAGE_ORDER.indexOf(stageId);
 }
 
-/** Etapa efectiva del pipeline según Supabase (fuente de verdad). */
 export function effectiveCurrentStageId(pipeline: CompanyPipeline): PipelineStageId {
   if (pipeline.pipelineCaseStage) {
     return mapBackendStageToFrontend(pipeline.pipelineCaseStage);
@@ -37,7 +36,6 @@ export function isStageReachable(target: PipelineStageId, pipeline: CompanyPipel
   return frontendStageIndex(target) <= frontendStageIndex(current);
 }
 
-/** Power App habilitada solo cuando Supabase alcanzó power_apps o posterior. */
 export function canOpenPowerApp(pipeline: CompanyPipeline): boolean {
   const stage = pipeline.pipelineCaseStage;
   if (!stage) {

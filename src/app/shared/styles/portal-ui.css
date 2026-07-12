@@ -1,4 +1,4 @@
-/* Portal Comercial — patrones reutilizables (design handoff BDB) */
+
 
 .page-title {
   font-size: 44px;
@@ -649,7 +649,7 @@
   text-decoration: underline;
 }
 
-/* Dashboard compacto de contacto en ficha de empresa */
+
 .call-dashboard {
   display: flex;
   flex-direction: column;
@@ -1040,7 +1040,7 @@
   }
 }
 
-/* Historial de contactos embebido en pipeline (paridad con calls-page) */
+
 .call-history-panel .layout {
   grid-template-columns: 320px minmax(0, 1fr);
   gap: 16px;

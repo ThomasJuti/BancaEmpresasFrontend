@@ -44,7 +44,6 @@ export interface TranscriptMessage {
   message: string;
 }
 
-/** Vista completa de una llamada para paneles de detalle por cliente. */
 export interface CallDetail {
   id: string;
   sessionId?: string;
@@ -69,7 +68,6 @@ export interface CallDetail {
   updatedAt: string;
 }
 
-/** Vista mínima de una llamada para correlacionar el estado del pipeline por cliente. */
 export type CallRecord = Pick<
   CallDetail,
   'id' | 'phoneNumber' | 'status' | 'recordingUrl' | 'successEvaluation' | 'variables' | 'updatedAt'

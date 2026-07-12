@@ -1,4 +1,3 @@
-/** Utilidades para distinguir NIT empresarial vs documento de persona natural (Colombia). */
 
 import { TipoIdentificacionTarjetahabiente } from '../models/power-app-submit.model';
 
@@ -6,7 +5,6 @@ export function normalizeIdentification(value: string): string {
   return value.replace(/[.\-\s]/g, '').trim();
 }
 
-/** Alinea NIT del formulario con el que devuelve RUES (9 dígitos sin verificación). Solo para cruce interno. */
 export function nitBaseForRuesMatch(value: string): string {
   const digits = value.replace(/\D/g, '');
   if (!digits) return '';
@@ -16,7 +14,6 @@ export function nitBaseForRuesMatch(value: string): string {
   return digits.length >= 10 ? digits.slice(0, 9) : digits;
 }
 
-/** @deprecated Usar nitBaseForRuesMatch; no usar para submit ni prefill. */
 export function normalizeEmpresaNit(value: string): string {
   return nitBaseForRuesMatch(value);
 }
@@ -67,7 +64,6 @@ export function looksLikeTarjetahabienteDocument(
   }
 }
 
-/** Compatibilidad: validación genérica cuando no se conoce el tipo de documento. */
 export function looksLikeNaturalPersonDocument(value: string): boolean {
   const id = normalizeIdentification(value).toUpperCase();
   if (/^[A-Z0-9]{5,20}$/.test(id) && /[A-Z]/.test(id)) return true;

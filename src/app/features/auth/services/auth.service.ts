@@ -8,12 +8,6 @@ export interface OrusUser {
   email: string;
 }
 
-/**
- * Estado de autenticación de ORUS respaldado por Supabase Auth (Google OAuth).
- *
- * En producción (`environment.production === true`) usa OAuth con Google.
- * En local (`ng serve`) omite el redirect y crea una sesión de desarrollo.
- */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly supabase = getSupabaseBrowserClient();
@@ -31,10 +25,6 @@ export class AuthService {
     });
   }
 
-  /**
-   * Inicia sesión. En producción redirige a Google vía Supabase; en local
-   * resuelve de inmediato sin salir de localhost.
-   */
   async loginWithGoogle(returnUrl = '/portafolio/pipeline'): Promise<void> {
     if (!environment.production) {
       this._user.set({ name: 'Usuario local', email: 'dev@local' });

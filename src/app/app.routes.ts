@@ -15,7 +15,6 @@ export const routes: Routes = [
       ),
   },
   {
-    // Pública: el gerente llega desde el link del correo, sin sesión.
     path: 'confirmar-entrega',
     loadComponent: () =>
       import('./features/delivery-confirmation/components/confirm-delivery-page.component').then(

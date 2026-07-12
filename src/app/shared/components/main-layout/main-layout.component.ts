@@ -2,7 +2,6 @@ import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 
-/** Shell de la aplicación autenticada: barra lateral + contenido enrutado. */
 @Component({
   selector: 'app-main-layout',
   standalone: true,

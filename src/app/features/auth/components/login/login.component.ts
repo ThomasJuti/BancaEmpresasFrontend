@@ -27,7 +27,6 @@ export class LoginComponent {
       const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/portafolio/pipeline';
       await this.auth.loginWithGoogle(returnUrl);
 
-      // En local la sesión se crea sin redirect; en producción el navegador sale hacia Google.
       if (this.auth.isAuthenticated()) {
         void this.router.navigateByUrl(returnUrl, { replaceUrl: true });
         return;

@@ -14,11 +14,6 @@ import {
 } from '../../../../shared/utils/call-display.util';
 import { matchesNit } from '../../../../shared/utils/nit.util';
 
-/**
- * Vista lateral "Seguimiento": monitoreo de uso de las TC entregadas.
- * La TC se inactiva a los 90 días sin uso; el backend llama automáticamente
- * (mes 1: una llamada al día 30; mes 2: cada 15 días; mes 3: semanal).
- */
 @Component({
   selector: 'app-follow-up-page',
   standalone: true,
@@ -37,7 +32,6 @@ export class FollowUpPageComponent implements OnInit {
   readonly usageLoadingId = signal<string | null>(null);
   readonly checkingReminders = signal(false);
 
-  // Llamadas del cliente cuyo panel está desplegado (una a la vez).
   readonly expandedClienteId = signal<string | null>(null);
   readonly clientCalls = signal<CallDetail[]>([]);
   readonly clientCallsLoading = signal(false);
@@ -59,21 +53,10 @@ export class FollowUpPageComponent implements OnInit {
     this.loadCases();
   }
 
-  /**
-   * Botón "Actualizar": solo recarga los casos (días sin uso, fase, etc. se
-   * calculan en el backend a partir de la hora actual). Sin efectos
-   * secundarios — no dispara llamadas.
-   */
   refresh(): void {
     this.loadCases();
   }
 
-  /**
-   * Botón "Verificar y lanzar llamadas": procesa los recordatorios por
-   * inactividad vencidos (en prod el cron solo corre 1 vez/día) y recarga la
-   * lista al terminar. Separado de "Actualizar" para que refrescar la vista
-   * nunca dispare llamadas reales de forma implícita.
-   */
   checkReminders(): void {
     this.checkingReminders.set(true);
     this.followUpService.processReminders().subscribe({
@@ -124,7 +107,6 @@ export class FollowUpPageComponent implements OnInit {
     });
   }
 
-  /** Despliega/oculta el historial de llamadas del cliente seleccionado. */
   toggleCalls(caso: FollowUpCase): void {
     if (this.expandedClienteId() === caso.clienteId) {
       this.expandedClienteId.set(null);
@@ -154,7 +136,6 @@ export class FollowUpPageComponent implements OnInit {
     return this.expandedClienteId() === caso.clienteId;
   }
 
-  /** Etiqueta del tipo de llamada de seguimiento a partir de las variables de entrada. */
   tipoLlamadaLabel(call: CallDetail): string {
     const tipo = call.variables?.['tipo_llamada'];
     if (tipo === 'felicitacion') return 'Felicitación';
@@ -162,7 +143,6 @@ export class FollowUpPageComponent implements OnInit {
     return 'Contacto';
   }
 
-  /** URL del proxy autenticado que sirve la grabación de Fonema (con soporte Range). */
   recordingUrl(call: CallDetail): string {
     return this.salesCalls.recordingUrl(call.id);
   }
@@ -183,7 +163,6 @@ export class FollowUpPageComponent implements OnInit {
     return 'pending';
   }
 
-  /** Avance hacia la inactivación (día 90), para la barra de progreso. */
   inactivationPercent(caso: FollowUpCase): number {
     return Math.min(100, Math.round((caso.diasSinUso / 90) * 100));
   }

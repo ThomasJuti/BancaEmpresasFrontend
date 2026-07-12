@@ -2,11 +2,6 @@ import { Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
-/**
- * Aterrizaje del redirect de Google. Para cuando se activa esta ruta, el
- * APP_INITIALIZER ya intercambió el código OAuth y restauró la sesión, por lo
- * que aquí solo redirigimos al destino solicitado (o al login si algo falló).
- */
 @Component({
   selector: 'app-auth-callback',
   standalone: true,

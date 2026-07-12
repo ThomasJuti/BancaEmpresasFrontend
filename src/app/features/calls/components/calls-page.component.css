@@ -3,7 +3,7 @@
   padding: 40px 48px 56px;
 }
 
-/* Topbar */
+
 .topbar {
   display: flex;
   align-items: flex-start;
@@ -226,7 +226,7 @@
   align-items: start;
 }
 
-/* Lista */
+
 .list {
   display: flex;
   flex-direction: column;
@@ -272,7 +272,7 @@
   margin-top: 2px;
 }
 
-/* Tags de resultado en la lista */
+
 .tags {
   display: flex;
   flex-wrap: wrap;
@@ -280,7 +280,7 @@
   margin-top: 8px;
 }
 
-/* Detalle */
+
 .detail {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -301,7 +301,7 @@
   color: var(--heading);
 }
 
-/* KPI cards */
+
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -341,7 +341,7 @@
   color: var(--body);
 }
 
-/* Secciones */
+
 .card {
   border-top: 1px solid var(--divider);
   padding-top: 20px;
@@ -360,7 +360,7 @@
   line-height: 1.55;
 }
 
-/* Resultado de la llamada */
+
 .result {
   display: flex;
   flex-wrap: wrap;
@@ -452,7 +452,7 @@
   text-decoration: underline;
 }
 
-/* Chat / transcript */
+
 .chat {
   display: flex;
   flex-direction: column;
@@ -488,7 +488,7 @@
   border-bottom-right-radius: 4px;
 }
 
-/* Badges de estado */
+
 .badge {
   font-size: 12px;
   font-weight: 700;

@@ -1,4 +1,3 @@
-/** Normaliza NIT/Cliente_Id para comparar llamadas con empresas del portafolio. */
 export function normalizeNit(value: string | null | undefined): string {
   if (!value) return '';
   return value.replace(/[.\-\s]/g, '').trim();

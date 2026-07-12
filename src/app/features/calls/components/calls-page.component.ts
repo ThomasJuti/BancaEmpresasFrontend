@@ -14,11 +14,6 @@ import {
 } from '../../../shared/utils/call-display.util';
 import { isValidE164, toE164 } from '../../../shared/utils/phone.util';
 
-/**
- * Historial de llamadas (agente Fonema + registro manual del asesor).
- * Presentación pura: el acceso HTTP vive en core (SalesCallsService) y el
- * formateo compartido en shared/utils/call-display.util.
- */
 @Component({
   selector: 'app-calls-page',
   standalone: true,
@@ -61,7 +56,6 @@ export class CallsPageComponent implements OnInit {
       this.manualPhoneValid(),
   );
 
-  // Formateo compartido (shared/utils/call-display.util) expuesto al template.
   readonly statusLabel = callStatusLabel;
   readonly isManualCall = isManualCall;
   readonly identityVerified = identityVerified;
