@@ -27,6 +27,7 @@ export class FollowUpPageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly feedback = signal<string | null>(null);
   readonly usageLoadingId = signal<string | null>(null);
+  readonly checkingReminders = signal(false);
 
   readonly kpis = computed(() => {
     const casos = this.cases();
@@ -42,22 +43,37 @@ export class FollowUpPageComponent implements OnInit {
   }
 
   /**
-   * Botón "Actualizar": procesa los recordatorios por inactividad vencidos
-   * (en prod el cron solo corre 1 vez/día) y luego recarga la lista.
+   * Botón "Actualizar": solo recarga los casos (días sin uso, fase, etc. se
+   * calculan en el backend a partir de la hora actual). Sin efectos
+   * secundarios — no dispara llamadas.
    */
   refresh(): void {
-    this.loading.set(true);
-    this.error.set(null);
+    this.loadCases();
+  }
+
+  /**
+   * Botón "Verificar y lanzar llamadas": procesa los recordatorios por
+   * inactividad vencidos (en prod el cron solo corre 1 vez/día) y recarga la
+   * lista al terminar. Separado de "Actualizar" para que refrescar la vista
+   * nunca dispare llamadas reales de forma implícita.
+   */
+  checkReminders(): void {
+    this.checkingReminders.set(true);
     this.followUpService.processReminders().subscribe({
       next: (response) => {
+        this.checkingReminders.set(false);
         const iniciadas = response.resumen.llamadasIniciadas;
-        if (iniciadas > 0) {
-          this.showFeedback(`${iniciadas} llamada(s) de recordatorio iniciada(s).`);
-        }
+        this.showFeedback(
+          iniciadas > 0
+            ? `${iniciadas} llamada(s) de recordatorio iniciada(s).`
+            : 'No hay recordatorios pendientes por ahora.',
+        );
         this.loadCases();
       },
-      // Best-effort: si el procesado falla, igual mostramos los casos.
-      error: () => this.loadCases(),
+      error: () => {
+        this.checkingReminders.set(false);
+        this.showFeedback('No se pudo verificar los recordatorios.');
+      },
     });
   }
 
