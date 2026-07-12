@@ -45,6 +45,13 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./features/follow-up/follow-up.routes').then((m) => m.FOLLOW_UP_ROUTES),
       },
+      {
+        path: 'reportes',
+        loadComponent: () =>
+          import('./features/reports/components/reports-page/reports-page.component').then(
+            (m) => m.ReportsPageComponent,
+          ),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

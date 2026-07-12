@@ -6,6 +6,13 @@ import {
   FollowUpFase,
   FollowUpService,
 } from '../../../../core/services/follow-up.service';
+import { CallDetail, SalesCallsService } from '../../../../core/services/sales-calls.service';
+import {
+  callStatusLabel,
+  endedReasonLabel,
+  isCallTerminal,
+} from '../../../../shared/utils/call-display.util';
+import { matchesNit } from '../../../../shared/utils/nit.util';
 
 /**
  * Vista lateral "Seguimiento": monitoreo de uso de las TC entregadas.
@@ -21,6 +28,7 @@ import {
 })
 export class FollowUpPageComponent implements OnInit {
   private readonly followUpService = inject(FollowUpService);
+  private readonly salesCalls = inject(SalesCallsService);
 
   readonly cases = signal<FollowUpCase[]>([]);
   readonly loading = signal(true);
@@ -28,6 +36,15 @@ export class FollowUpPageComponent implements OnInit {
   readonly feedback = signal<string | null>(null);
   readonly usageLoadingId = signal<string | null>(null);
   readonly checkingReminders = signal(false);
+
+  // Llamadas del cliente cuyo panel está desplegado (una a la vez).
+  readonly expandedClienteId = signal<string | null>(null);
+  readonly clientCalls = signal<CallDetail[]>([]);
+  readonly clientCallsLoading = signal(false);
+
+  readonly statusLabel = callStatusLabel;
+  readonly endedReasonLabel = endedReasonLabel;
+  readonly isTerminal = isCallTerminal;
 
   readonly kpis = computed(() => {
     const casos = this.cases();
@@ -105,6 +122,44 @@ export class FollowUpPageComponent implements OnInit {
         this.showFeedback('No se pudo registrar el uso.');
       },
     });
+  }
+
+  /** Despliega/oculta el historial de llamadas del cliente seleccionado. */
+  toggleCalls(caso: FollowUpCase): void {
+    if (this.expandedClienteId() === caso.clienteId) {
+      this.expandedClienteId.set(null);
+      return;
+    }
+
+    this.expandedClienteId.set(caso.clienteId);
+    this.clientCalls.set([]);
+    this.clientCallsLoading.set(true);
+    this.salesCalls.listCalls().subscribe({
+      next: (calls) => {
+        this.clientCalls.set(
+          calls
+            .filter((c) => matchesNit(c.variables?.['nit'], caso.clienteId))
+            .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '')),
+        );
+        this.clientCallsLoading.set(false);
+      },
+      error: () => {
+        this.clientCallsLoading.set(false);
+        this.showFeedback('No se pudieron cargar las llamadas del cliente.');
+      },
+    });
+  }
+
+  isExpanded(caso: FollowUpCase): boolean {
+    return this.expandedClienteId() === caso.clienteId;
+  }
+
+  /** Etiqueta del tipo de llamada de seguimiento a partir de las variables de entrada. */
+  tipoLlamadaLabel(call: CallDetail): string {
+    const tipo = call.variables?.['tipo_llamada'];
+    if (tipo === 'felicitacion') return 'Felicitación';
+    if (tipo === 'recordatorio_uso') return 'Recordatorio de uso';
+    return 'Contacto';
   }
 
   faseLabel(fase: FollowUpFase): string {

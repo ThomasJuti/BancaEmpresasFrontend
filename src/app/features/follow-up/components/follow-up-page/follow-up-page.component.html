@@ -116,8 +116,63 @@
       >
         {{ usageLoadingId() === caso.clienteId ? 'Registrando…' : 'Registrar uso (demo)' }}
       </button>
-      <a class="btn-secondary" routerLink="/llamadas">Ver llamadas</a>
+      <button
+        type="button"
+        class="btn-secondary"
+        (click)="toggleCalls(caso)"
+        [attr.aria-expanded]="isExpanded(caso)"
+      >
+        {{ isExpanded(caso) ? 'Ocultar llamadas ▴' : 'Ver llamadas ▾' }}
+      </button>
     </div>
+
+    @if (isExpanded(caso)) {
+    <div class="calls-panel">
+      @if (clientCallsLoading()) {
+      <p class="muted small">Cargando llamadas…</p>
+      } @else if (clientCalls().length === 0) {
+      <p class="muted small">Este cliente aún no tiene llamadas registradas.</p>
+      } @else {
+      <ul class="calls-list">
+        @for (call of clientCalls(); track call.id) {
+        <li class="call-row">
+          <div class="call-row-head">
+            <span class="call-tipo">{{ tipoLlamadaLabel(call) }}</span>
+            <span class="badge sm" [attr.data-status]="call.status">{{ statusLabel(call.status) }}</span>
+            <span class="muted small">{{ call.createdAt | date: 'short' }}</span>
+          </div>
+          @if (isTerminal(call)) {
+          <div class="call-row-meta muted small">
+            @if (call.endedReason) { Fin: {{ endedReasonLabel(call.endedReason) }} }
+            @if (call.durationSeconds != null) { · {{ call.durationSeconds }}s }
+          </div>
+          @if (call.summary) {
+          <p class="call-summary">{{ call.summary }}</p>
+          }
+          @if (call.transcript && call.transcript.length > 0) {
+          <details class="call-transcript">
+            <summary>Ver transcripción</summary>
+            <div class="chat">
+              @for (msg of call.transcript; track $index) {
+              @if (msg.role !== 'system') {
+              <div class="msg" [class.agent]="msg.role !== 'user'" [class.user]="msg.role === 'user'">
+                <span class="who">{{ msg.role === 'user' ? 'Cliente' : 'Agente' }}</span>
+                <p>{{ msg.message }}</p>
+              </div>
+              }
+              }
+            </div>
+          </details>
+          }
+          } @else {
+          <p class="muted small">En cola — a la espera del resultado de Fonema.</p>
+          }
+        </li>
+        }
+      </ul>
+      }
+    </div>
+    }
   </article>
   }
 </div>
