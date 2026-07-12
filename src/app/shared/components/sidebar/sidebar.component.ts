@@ -3,7 +3,7 @@ import { Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../features/auth/services/auth.service';
 
-type NavIcon = 'phone' | 'phone-list' | 'portfolio' | 'box' | 'star' | 'chart';
+type NavIcon = 'phone' | 'phone-list' | 'portfolio' | 'star' | 'chart';
 
 interface NavItem {
   label: string;
@@ -25,9 +25,8 @@ export class SidebarComponent {
 
   readonly items: NavItem[] = [
     { label: 'En gestión', icon: 'portfolio', route: '/portafolio/pipeline', exact: true },
-    { label: 'Entregas', icon: 'box', route: '' },
     { label: 'Seguimiento', icon: 'star', route: '/seguimiento' },
-    { label: 'Reportes', icon: 'chart', route: '' },
+    { label: 'Reportes', icon: 'chart', route: '/reportes' },
   ];
 
   async logout(): Promise<void> {
