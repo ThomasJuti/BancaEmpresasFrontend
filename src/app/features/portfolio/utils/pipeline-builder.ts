@@ -181,9 +181,6 @@ export function applyPipelineAction(
     case 'view_ops_status':
       return 'Estado operaciones: en captura (ANS día 3 de 5).';
     case 'confirm_delivery':
-      if (!pipeline.cardShippedAt) {
-        pipeline.cardShippedAt = new Date().toISOString();
-      }
       stage.subSteps[2].status = 'in_progress';
       return 'Entrega confirmada. Pendiente acuse de recibido.';
     case 'upload_receipt':

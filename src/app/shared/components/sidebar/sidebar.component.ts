@@ -3,7 +3,7 @@ import { Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../features/auth/services/auth.service';
 
-type NavIcon = 'phone' | 'phone-list' | 'portfolio' | 'star' | 'chart';
+type NavIcon = 'portfolio' | 'star' | 'chart';
 
 interface NavItem {
   label: string;

@@ -168,7 +168,7 @@
               <span class="kpi-caption">Resultado</span>
             </div>
             <div class="kpi">
-              <span class="kpi-value small">{{ call.endedReason || '—' }}</span>
+              <span class="kpi-value small">{{ endedReasonLabel(call.endedReason) }}</span>
               <span class="kpi-caption">Motivo de fin</span>
             </div>
           </div>
@@ -209,7 +209,7 @@
             <div class="vars">
               @for (entry of outputEntries(call); track entry.key) {
               <div class="var">
-                <span class="var-key">{{ entry.key }}</span>
+                <span class="var-key">{{ entry.label }}</span>
                 <span class="var-val">{{ entry.value }}</span>
               </div>
               }
@@ -223,7 +223,7 @@
             <div class="vars">
               @for (entry of structuredEntries(call.structuredData); track entry.key) {
               <div class="var">
-                <span class="var-key">{{ entry.key }}</span>
+                <span class="var-key">{{ entry.label }}</span>
                 <span class="var-val">{{ entry.value }}</span>
               </div>
               }

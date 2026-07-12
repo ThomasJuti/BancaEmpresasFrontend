@@ -30,7 +30,6 @@ export class PortfolioListPageComponent implements OnInit {
   private readonly salesCalls = inject(SalesCallsService);
   private readonly router = inject(Router);
 
-  readonly pageSize = PAGE_SIZE;
   readonly companies = signal<PortfolioCompanySummary[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);

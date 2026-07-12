@@ -9,7 +9,7 @@
   <header class="detail-head">
     <div>
       <h1 class="page-title" style="font-size: 32px">{{ p.name }}</h1>
-      <p class="page-subtitle">NIT {{ p.nit }} · Comercial: {{ p.assignedCommercial }}</p>
+      <p class="page-subtitle">NIT {{ p.nit }}</p>
       @if (p.powerAppRadicado) {
       <p class="radicado-line">Radicado GOPTC: <strong>{{ p.powerAppRadicado }}</strong></p>
       } @else if (lastRadicado()) {
@@ -17,8 +17,7 @@
       }
     </div>
     <div class="head-badges">
-      <span class="badge lg" [attr.data-status]="badgeStatus(p.activationStatus)">{{ statusLabel(p.activationStatus) }}</span>
-      <span class="badge" data-status="in_progress">{{ p.currentStageLabel }}</span>
+      <span class="badge lg" data-status="in_progress">{{ p.currentStageLabel }}</span>
     </div>
   </header>
 

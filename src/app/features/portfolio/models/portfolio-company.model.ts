@@ -1,8 +1,6 @@
 import { PipelineStage, PipelineStageId } from './pipeline-stage.model';
 import { BackendPipelineStage } from './pipeline-case.model';
 
-export type ActivationStatus = 'pending' | 'activated' | 'at_risk' | 'cancelled';
-
 export interface PortfolioCompanySummary {
   id: string;
   name: string;
@@ -11,14 +9,9 @@ export interface PortfolioCompanySummary {
   currentStageId: PipelineStageId;
   currentStageLabel: string;
   progressPercent: number;
-  cardShippedAt?: string;
-  activatedAt?: string;
-  assignedCommercial: string;
-  activationStatus: ActivationStatus;
   phone?: string | null;
   email?: string | null;
   representanteLegalNombre?: string | null;
-  hasCall?: boolean;
   pipelineCaseId?: string;
   pipelineCaseStage?: BackendPipelineStage;
   powerAppSubmittedAt?: string;
@@ -27,13 +20,6 @@ export interface PortfolioCompanySummary {
 
 export interface CompanyPipeline extends PortfolioCompanySummary {
   stages: PipelineStage[];
-}
-
-export interface PortfolioKpis {
-  sold: number;
-  inFollowUp: number;
-  activated: number;
-  atRisk: number;
 }
 
 export interface ActionResult {

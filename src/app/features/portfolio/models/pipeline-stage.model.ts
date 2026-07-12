@@ -43,15 +43,6 @@ export const PIPELINE_STAGE_LABELS: Record<PipelineStageId, string> = {
   follow_up: 'Cierre de entrega',
 };
 
-/** Etiquetas cortas para filtros y navegación del asesor. */
-export const PIPELINE_STAGE_FILTER_LABELS: Record<PipelineStageId, string> = {
-  calls: 'Contacto telefónico',
-  power_app: 'Solicitud Power App',
-  operations: 'Operaciones',
-  card_delivery: 'Entrega de tarjeta',
-  follow_up: 'Activación',
-};
-
 export const PIPELINE_STAGE_ORDER: PipelineStageId[] = [
   'calls',
   'power_app',

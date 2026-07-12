@@ -9,7 +9,6 @@ import { PowerAppSubmissionStore } from '../../../power-apps/services/power-app-
 import { PipelineAction, PipelineStageId } from '../../models/pipeline-stage.model';
 import { CompanyPipeline } from '../../models/portfolio-company.model';
 import { PortfolioRepository, PORTFOLIO_REPOSITORY } from '../../models/portfolio.repository';
-import { activationStatusLabel, stepStatusLabel } from '../../utils/follow-up.util';
 import { computeProgress } from '../../utils/pipeline-builder';
 import { canOpenPowerApp, isStageReachable } from '../../utils/pipeline-access.util';
 import { PipelineStepperComponent } from '../pipeline-stepper/pipeline-stepper.component';
@@ -69,9 +68,6 @@ export class CompanyPipelinePageComponent implements OnInit {
 
   readonly backUrl = '/portafolio/pipeline';
   readonly backLabel = '← Volver a en gestión';
-
-  statusLabel = activationStatusLabel;
-  stepLabel = stepStatusLabel;
 
   ngOnInit(): void {
     this.route.queryParamMap.subscribe((query) => {
@@ -495,10 +491,4 @@ export class CompanyPipelinePageComponent implements OnInit {
     });
   }
 
-  badgeStatus(status: string): string {
-    if (status === 'activated') return 'activated';
-    if (status === 'at_risk') return 'at_risk';
-    if (status === 'cancelled') return 'cancelled';
-    return 'pending';
-  }
 }

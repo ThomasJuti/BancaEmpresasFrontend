@@ -6,9 +6,20 @@
       automáticamente al mes sin uso (mes 2: cada 15 días; mes 3: semanal).
     </p>
   </div>
-  <button type="button" class="btn-secondary" (click)="refresh()" [disabled]="loading()">
-    Actualizar
-  </button>
+  <div class="page-head-actions">
+    <button
+      type="button"
+      class="btn-secondary"
+      (click)="checkReminders()"
+      [disabled]="checkingReminders()"
+      title="Revisa la cadencia de recordatorios y llama a los clientes vencidos"
+    >
+      {{ checkingReminders() ? 'Verificando…' : 'Verificar y lanzar llamadas' }}
+    </button>
+    <button type="button" class="btn-secondary" (click)="refresh()" [disabled]="loading()">
+      Actualizar
+    </button>
+  </div>
 </header>
 
 @if (loading()) {

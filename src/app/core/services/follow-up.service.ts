@@ -58,6 +58,18 @@ export class FollowUpService {
     return this.http.get<{ total: number; casos: FollowUpCase[] }>(`${this.base}/cases`);
   }
 
+  /**
+   * Procesa los recordatorios por inactividad vencidos (los que la cadencia
+   * exige). Lo dispara el botón "Actualizar" de Seguimiento; la cadencia del
+   * backend evita reenvíos, así que es seguro llamarlo repetidamente.
+   */
+  processReminders(): Observable<{ resumen: { procesados: number; llamadasIniciadas: number; errores: number } }> {
+    return this.http.post<{ resumen: { procesados: number; llamadasIniciadas: number; errores: number } }>(
+      `${this.base}/cases/process-reminders`,
+      {},
+    );
+  }
+
   /** Simula un uso de la tarjeta (demo); reinicia el ciclo de recordatorios. */
   registerUsage(clienteId: string): Observable<{ caso: FollowUpCase }> {
     return this.http.post<{ caso: FollowUpCase }>(

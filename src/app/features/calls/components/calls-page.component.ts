@@ -1,11 +1,24 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { SALES_CALLS_API } from '../../../core/config/api.config';
+import { CallDetail, SalesCallsService } from '../../../core/services/sales-calls.service';
+import {
+  callDataEntries,
+  callStatusLabel,
+  clientInterested,
+  endedReasonLabel,
+  identityVerified,
+  isCallSuccess,
+  isManualCall,
+  noInterestReason,
+} from '../../../shared/utils/call-display.util';
 import { isValidE164, toE164 } from '../../../shared/utils/phone.util';
-import { Call } from '../models/call.model';
-import { CallsService } from '../services/calls.service';
 
+/**
+ * Historial de llamadas (agente Fonema + registro manual del asesor).
+ * Presentación pura: el acceso HTTP vive en core (SalesCallsService) y el
+ * formateo compartido en shared/utils/call-display.util.
+ */
 @Component({
   selector: 'app-calls-page',
   standalone: true,
@@ -14,8 +27,10 @@ import { CallsService } from '../services/calls.service';
   styleUrls: ['./calls-page.component.css'],
 })
 export class CallsPageComponent implements OnInit {
-  readonly calls = signal<Call[]>([]);
-  readonly selected = signal<Call | null>(null);
+  private readonly callsService = inject(SalesCallsService);
+
+  readonly calls = signal<CallDetail[]>([]);
+  readonly selected = signal<CallDetail | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly showManualForm = signal(false);
@@ -46,7 +61,14 @@ export class CallsPageComponent implements OnInit {
       this.manualPhoneValid(),
   );
 
-  constructor(private readonly callsService: CallsService) {}
+  // Formateo compartido (shared/utils/call-display.util) expuesto al template.
+  readonly statusLabel = callStatusLabel;
+  readonly isManualCall = isManualCall;
+  readonly identityVerified = identityVerified;
+  readonly clientInterested = clientInterested;
+  readonly noInterestReason = noInterestReason;
+  readonly isSuccess = isCallSuccess;
+  readonly endedReasonLabel = endedReasonLabel;
 
   ngOnInit(): void {
     this.refresh();
@@ -55,7 +77,7 @@ export class CallsPageComponent implements OnInit {
   refresh(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.callsService.list().subscribe({
+    this.callsService.listCalls().subscribe({
       next: (calls) => {
         this.calls.set(calls);
         if (!this.selected() && calls.length > 0) {
@@ -70,7 +92,7 @@ export class CallsPageComponent implements OnInit {
     });
   }
 
-  select(call: Call): void {
+  select(call: CallDetail): void {
     this.selected.set(call);
     this.showManualForm.set(false);
   }
@@ -127,84 +149,16 @@ export class CallsPageComponent implements OnInit {
       });
   }
 
-  recordingUrl(call: Call): string {
-    return `${SALES_CALLS_API}/calls/${call.id}/recording`;
+  recordingUrl(call: CallDetail): string {
+    return this.callsService.recordingUrl(call.id);
   }
 
-  isManualCall(call: Call): boolean {
-    return call.agentId === 'asesor-manual' || call.variables?.['canal'] === 'manual';
+  outputEntries(call: CallDetail): { key: string; label: string; value: string }[] {
+    return callDataEntries(call.outputVariables, { excludeHeadlines: true });
   }
 
-  statusLabel(status: Call['status']): string {
-    const labels: Record<Call['status'], string> = {
-      queued: 'En cola',
-      initiated: 'Iniciada',
-      in_progress: 'En curso',
-      completed: 'Completada',
-      failed: 'Fallida',
-    };
-    return labels[status] ?? status;
-  }
-
-  structuredEntries(data?: Record<string, unknown>): { key: string; value: string }[] {
-    if (!data) {
-      return [];
-    }
-    return Object.entries(data).map(([key, value]) => ({ key, value: String(value) }));
-  }
-
-  isSuccess(value?: boolean | string): boolean {
-    return value === true || value === 'true' || value === 'Verdadero';
-  }
-
-  private readonly HEADLINE_KEYS = ['identidad_verificada', 'cliente_interesado', 'motivo_no_interes'];
-
-  identityVerified(call: Call): boolean | null {
-    return this.truthiness(this.readVar(call, ['identidad_verificada', 'identidadVerificada']));
-  }
-
-  clientInterested(call: Call): boolean | null {
-    return this.truthiness(this.readVar(call, ['cliente_interesado', 'clienteInteresado']));
-  }
-
-  noInterestReason(call: Call): string | null {
-    return this.readVar(call, ['motivo_no_interes', 'motivo_no_interés', 'motivoNoInteres']) ?? null;
-  }
-
-  outputEntries(call: Call): { key: string; value: string }[] {
-    if (!call.outputVariables) {
-      return [];
-    }
-    return Object.entries(call.outputVariables)
-      .filter(([key]) => !this.HEADLINE_KEYS.includes(key.toLowerCase()))
-      .map(([key, value]) => ({ key, value: String(value) }));
-  }
-
-  private readVar(call: Call, keys: string[]): string | undefined {
-    const wanted = keys.map((k) => k.toLowerCase());
-    const sources: Record<string, unknown>[] = [call.outputVariables ?? {}, call.structuredData ?? {}];
-    for (const source of sources) {
-      for (const [key, value] of Object.entries(source)) {
-        if (wanted.includes(key.toLowerCase()) && value != null && String(value).trim() !== '') {
-          return String(value);
-        }
-      }
-    }
-    return undefined;
-  }
-
-  private truthiness(value: string | undefined): boolean | null {
-    if (value == null) {
-      return null;
-    }
-    const v = value.trim().toLowerCase();
-    if (['true', 'si', 'sí', 'verdadero', 'yes', '1'].includes(v)) {
-      return true;
-    }
-    if (['false', 'no', 'falso', '0'].includes(v)) {
-      return false;
-    }
-    return null;
+  structuredEntries(data?: Record<string, unknown>): { key: string; label: string; value: string }[] {
+    return callDataEntries(data);
   }
 
   private resetManualForm(): void {
