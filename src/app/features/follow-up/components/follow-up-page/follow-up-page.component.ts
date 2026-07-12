@@ -38,10 +38,30 @@ export class FollowUpPageComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.refresh();
+    this.loadCases();
   }
 
+  /**
+   * Botón "Actualizar": procesa los recordatorios por inactividad vencidos
+   * (en prod el cron solo corre 1 vez/día) y luego recarga la lista.
+   */
   refresh(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.followUpService.processReminders().subscribe({
+      next: (response) => {
+        const iniciadas = response.resumen.llamadasIniciadas;
+        if (iniciadas > 0) {
+          this.showFeedback(`${iniciadas} llamada(s) de recordatorio iniciada(s).`);
+        }
+        this.loadCases();
+      },
+      // Best-effort: si el procesado falla, igual mostramos los casos.
+      error: () => this.loadCases(),
+    });
+  }
+
+  private loadCases(): void {
     this.loading.set(true);
     this.error.set(null);
     this.followUpService.listCases().subscribe({
@@ -62,7 +82,7 @@ export class FollowUpPageComponent implements OnInit {
       next: () => {
         this.usageLoadingId.set(null);
         this.showFeedback(`Uso registrado para ${caso.clienteNombre ?? caso.clienteId}. Ciclo de recordatorios reiniciado.`);
-        this.refresh();
+        this.loadCases();
       },
       error: () => {
         this.usageLoadingId.set(null);
