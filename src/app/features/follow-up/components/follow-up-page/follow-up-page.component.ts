@@ -162,6 +162,11 @@ export class FollowUpPageComponent implements OnInit {
     return 'Contacto';
   }
 
+  /** URL del proxy autenticado que sirve la grabación de Fonema (con soporte Range). */
+  recordingUrl(call: CallDetail): string {
+    return this.salesCalls.recordingUrl(call.id);
+  }
+
   faseLabel(fase: FollowUpFase): string {
     const labels: Record<FollowUpFase, string> = {
       al_dia: 'Al día',

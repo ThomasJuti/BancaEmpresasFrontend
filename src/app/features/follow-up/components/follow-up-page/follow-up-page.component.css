@@ -209,6 +209,14 @@
   line-height: 1.45;
 }
 
+.call-player {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  height: 38px;
+  margin-top: 10px;
+}
+
 .call-transcript {
   margin-top: 8px;
 }
