@@ -57,6 +57,7 @@ export interface CallDetail {
   outputVariables?: Record<string, string>;
   status: CallStatus;
   recordingUrl?: string;
+  detailsUrl?: string;
   transcript?: TranscriptMessage[];
   summary?: string;
   endedReason?: string;

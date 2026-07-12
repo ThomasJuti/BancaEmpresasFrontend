@@ -2,15 +2,12 @@ import { InjectionToken } from '@angular/core';
 import { Observable } from 'rxjs';
 import { CallDetail } from '../../../core/services/sales-calls.service';
 import { PipelineStageId } from './pipeline-stage.model';
-import { ActionResult, CompanyPipeline, PortfolioCompanySummary, PortfolioKpis } from './portfolio-company.model';
-
-export type PortfolioListSection = 'pending_calls' | 'pipeline';
+import { ActionResult, CompanyPipeline, PortfolioCompanySummary } from './portfolio-company.model';
 
 export interface PortfolioPageQuery {
   page: number;
   pageSize: number;
   search?: string;
-  section?: PortfolioListSection;
   stage?: PipelineStageId;
 }
 
@@ -23,7 +20,6 @@ export interface PortfolioPageResult {
 
 export interface PortfolioRepository {
   getCompanies(query: PortfolioPageQuery): Observable<PortfolioPageResult>;
-  getKpis(): Observable<PortfolioKpis>;
   getCompanyPipeline(companyId: string): Observable<CompanyPipeline>;
   getCallsForCompany(nit: string): Observable<CallDetail[]>;
   invalidateCompanyCache(companyId: string): void;

@@ -11,11 +11,7 @@ import {
   ClientesFinalesPaginatedResponse,
 } from '../models/cliente-final.model';
 import { PIPELINE_STAGE_LABELS, PipelineStageId } from '../models/pipeline-stage.model';
-import {
-  ActionResult,
-  CompanyPipeline,
-  PortfolioKpis,
-} from '../models/portfolio-company.model';
+import { ActionResult, CompanyPipeline } from '../models/portfolio-company.model';
 import {
   PortfolioPageQuery,
   PortfolioPageResult,
@@ -35,7 +31,6 @@ import {
   isManualCall,
 } from '../../../shared/utils/call-display.util';
 import { matchesNit } from '../../../shared/utils/nit.util';
-import { matchesPortfolioSection, matchesStageFilter } from '../utils/portfolio-section.util';
 
 // Todo lead recién cruzado entra al pipeline en la etapa de llamadas de venta.
 const INITIAL_STAGE: PipelineStageId = 'calls';
@@ -59,10 +54,12 @@ export class HttpPortfolioRepository implements PortfolioRepository {
   private readonly cache = new Map<string, CompanyPipeline>();
 
   getCompanies(query: PortfolioPageQuery): Observable<PortfolioPageResult> {
-    const hasClientFilters = !!query.section || !!query.stage;
+    // El filtro por etapa se resuelve en cliente (la etapa se deriva del
+    // pipeline case + llamadas), así que se trae un lote amplio y se pagina local.
+    const stageFilter = query.stage;
     let params = new HttpParams();
 
-    if (hasClientFilters) {
+    if (stageFilter) {
       params = params.set('page', '1').set('limit', String(CLIENT_FILTER_FETCH_LIMIT));
     } else {
       params = params.set('page', String(query.page)).set('limit', String(query.pageSize));
@@ -84,10 +81,10 @@ export class HttpPortfolioRepository implements PortfolioRepository {
           const pipeline = this.toPipeline(cliente, pipelineCase);
           applyCallState(pipeline, callState);
           this.cache.set(pipeline.id, pipeline);
-          return this.toSummary(pipeline, !!callState);
+          return this.toSummary(pipeline);
         });
 
-        if (!hasClientFilters) {
+        if (!stageFilter) {
           return {
             companies: summaries,
             total: response.total,
@@ -96,11 +93,7 @@ export class HttpPortfolioRepository implements PortfolioRepository {
           };
         }
 
-        const filtered = summaries.filter(
-          (company) =>
-            (!query.section || matchesPortfolioSection(company, query.section)) &&
-            matchesStageFilter(company, query.stage),
-        );
+        const filtered = summaries.filter((company) => company.currentStageId === stageFilter);
         const start = (query.page - 1) * query.pageSize;
 
         return {
@@ -110,18 +103,6 @@ export class HttpPortfolioRepository implements PortfolioRepository {
           pageSize: query.pageSize,
         };
       }),
-    );
-  }
-
-  getKpis(): Observable<PortfolioKpis> {
-    const params = new HttpParams().set('page', '1').set('limit', '1');
-    return this.http.get<ClientesFinalesPaginatedResponse>(this.endpoint, { params }).pipe(
-      map((response) => ({
-        sold: response.total,
-        inFollowUp: 0,
-        activated: 0,
-        atRisk: 0,
-      })),
     );
   }
 
@@ -292,8 +273,6 @@ export class HttpPortfolioRepository implements PortfolioRepository {
       currentStageId,
       currentStageLabel: PIPELINE_STAGE_LABELS[currentStageId],
       progressPercent: deliveryFinalized ? 100 : computeProgress(currentStageId),
-      assignedCommercial: 'Por asignar',
-      activationStatus: 'pending',
       phone: cliente.telefono,
       email: cliente.correo,
       representanteLegalNombre: cliente.representanteLegalNombre,
@@ -304,9 +283,9 @@ export class HttpPortfolioRepository implements PortfolioRepository {
     };
   }
 
-  private toSummary(pipeline: CompanyPipeline, hasCall = false) {
+  private toSummary(pipeline: CompanyPipeline) {
     const { stages, ...summary } = pipeline;
     void stages;
-    return { ...summary, hasCall };
+    return summary;
   }
 }

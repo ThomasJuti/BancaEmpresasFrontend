@@ -1,4 +1,4 @@
-import { PIPELINE_STAGE_LABELS, PipelineStageId } from '../models/pipeline-stage.model';
+import { PipelineStageId } from '../models/pipeline-stage.model';
 import type { BackendPipelineStage } from '../models/pipeline-case.model';
 
 const BACKEND_STAGE_ORDER: readonly BackendPipelineStage[] = [
@@ -36,9 +36,4 @@ export function isPowerAppStageCompleted(stage: BackendPipelineStage): boolean {
     return false;
   }
   return idx > powerIdx;
-}
-
-export function stageLabelForBackend(stage: BackendPipelineStage): string {
-  const frontendId = mapBackendStageToFrontend(stage);
-  return PIPELINE_STAGE_LABELS[frontendId];
 }
