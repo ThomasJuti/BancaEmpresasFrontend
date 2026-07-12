@@ -47,10 +47,8 @@ export const routes: Routes = [
       },
       {
         path: 'reportes',
-        loadComponent: () =>
-          import('./features/reports/components/reports-page/reports-page.component').then(
-            (m) => m.ReportsPageComponent,
-          ),
+        loadChildren: () =>
+          import('./features/reports/reports.routes').then((m) => m.REPORTS_ROUTES),
       },
     ],
   },

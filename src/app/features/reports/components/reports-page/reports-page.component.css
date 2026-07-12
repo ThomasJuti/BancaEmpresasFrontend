@@ -11,11 +11,20 @@
   margin-bottom: 28px;
 }
 
+.report-section {
+  margin-bottom: 36px;
+}
+
+.section-title {
+  font-size: 18px;
+  margin: 0 0 16px;
+}
+
 .kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .kpi {
@@ -35,115 +44,70 @@
   font-size: 13px;
 }
 
-.kpi.warn .kpi-value {
-  color: #d97706;
-}
-
 .kpi.danger .kpi-value {
   color: #b91c1c;
 }
 
-.cols {
+.kpi.highlight .kpi-value {
+  color: var(--exito, #16a34a);
+}
+
+.charts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
-  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
 }
 
-.panel {
-  padding: 22px 24px;
+.chart {
+  padding: 20px 24px;
 }
 
-.panel h2 {
-  margin: 0 0 4px;
-  font-size: 17px;
+.chart h3 {
+  margin: 0 0 16px;
 }
 
-.panel .small {
-  font-size: 12px;
-  margin: 0 0 14px;
-}
-
-.stat-list {
+.dist-list {
   list-style: none;
-  margin: 0 0 12px;
-  padding: 0;
-  border-top: 1px solid var(--border, #e5e7eb);
-}
-
-.stat-list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border, #e5e7eb);
-  font-size: 14px;
-}
-
-.stat-value {
-  font-weight: 700;
-}
-
-.stat-value.ok {
-  color: #16a34a;
-}
-
-.stat-value.no {
-  color: #b91c1c;
-}
-
-.rank {
-  list-style: none;
-  margin: 12px 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-}
-
-.rank-top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 6px;
 }
 
-.rank-label {
+.dist-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 2fr auto;
+  align-items: center;
+  gap: 12px;
   font-size: 14px;
+}
+
+.dist-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.rank-count {
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.rank-bar {
-  height: 8px;
-  border-radius: 5px;
+.dist-bar {
+  height: 10px;
+  border-radius: 6px;
   background: #e5e7eb;
   overflow: hidden;
 }
 
-.rank-fill {
+.dist-fill {
   height: 100%;
-  border-radius: 5px;
-  background: var(--primary, #2563eb);
+  border-radius: 6px;
+  background: #16a34a;
+  transition: width 0.3s ease;
 }
 
-.rank-fill.alt {
+.dist-fill.warning {
   background: #d97706;
 }
 
-.empty {
-  padding: 32px;
-  text-align: center;
-}
-
-.empty p {
-  margin: 0 0 8px;
+.dist-count {
+  color: var(--text-muted, #6b7280);
+  white-space: nowrap;
 }

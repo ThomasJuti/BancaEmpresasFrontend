@@ -1,108 +1,132 @@
 <header class="page-head">
   <div>
     <h1 class="page-title">Reportes</h1>
-    <p class="page-subtitle">Estadísticas del histórico de llamadas: ventas, seguimiento y registro manual.</p>
+    <p class="page-subtitle">
+      Resultados consolidados de las llamadas de ventas y del seguimiento de
+      activación de tarjetas.
+    </p>
   </div>
-  <button type="button" class="btn-secondary" (click)="load()" [disabled]="loading()">Actualizar</button>
+  <button type="button" class="btn-secondary" (click)="refresh()" [disabled]="loading()">
+    Actualizar
+  </button>
 </header>
 
 @if (loading()) {
 <p class="state">Cargando reportes…</p>
 } @else if (error()) {
 <p class="state error">{{ error() }}</p>
-} @else if (reports().total === 0) {
-<div class="card empty">
-  <p>Aún no hay llamadas registradas.</p>
-  <p class="muted">Las estadísticas aparecerán cuando el agente realice llamadas o se registren manualmente.</p>
-</div>
 } @else {
-@if (reports(); as r) {
-<section class="kpis">
-  <div class="card kpi">
-    <span class="kpi-value">{{ r.total }}</span>
-    <span class="kpi-label">Llamadas totales</span>
+
+<section class="report-section">
+  <h2 class="section-title">Llamadas de ventas</h2>
+
+  <div class="kpis">
+    <div class="card kpi">
+      <span class="kpi-value">{{ callStats().total }}</span>
+      <span class="kpi-label">Llamadas totales</span>
+    </div>
+    <div class="card kpi">
+      <span class="kpi-value">{{ callStats().completed }}</span>
+      <span class="kpi-label">Completadas</span>
+    </div>
+    <div class="card kpi" [class.danger]="callStats().failed > 0">
+      <span class="kpi-value">{{ callStats().failed }}</span>
+      <span class="kpi-label">Fallidas</span>
+    </div>
+    <div class="card kpi highlight">
+      <span class="kpi-value">{{ callStats().interestRate }}%</span>
+      <span class="kpi-label">Tasa de interés ({{ callStats().interested }} interesados)</span>
+    </div>
+    <div class="card kpi">
+      <span class="kpi-value">{{ callStats().verificationRate }}%</span>
+      <span class="kpi-label">Identidad verificada</span>
+    </div>
+    <div class="card kpi">
+      <span class="kpi-value">{{ formatDuration(callStats().avgDurationSeconds) }}</span>
+      <span class="kpi-label">Duración promedio</span>
+    </div>
   </div>
-  <div class="card kpi">
-    <span class="kpi-value">{{ r.completed }}</span>
-    <span class="kpi-label">Completadas</span>
-  </div>
-  <div class="card kpi" [class.warn]="r.inFlight > 0">
-    <span class="kpi-value">{{ r.inFlight }}</span>
-    <span class="kpi-label">En curso / en cola</span>
-  </div>
-  <div class="card kpi" [class.danger]="r.failed > 0">
-    <span class="kpi-value">{{ r.failed }}</span>
-    <span class="kpi-label">Fallidas</span>
+
+  <div class="charts">
+    <article class="card chart">
+      <h3>Estado de las llamadas</h3>
+      @if (statusDistribution().length === 0) {
+      <p class="muted">Aún no hay llamadas registradas.</p>
+      } @else {
+      <ul class="dist-list">
+        @for (row of statusDistribution(); track row.label) {
+        <li class="dist-row">
+          <span class="dist-label">{{ row.label }}</span>
+          <div class="dist-bar">
+            <div class="dist-fill" [style.width.%]="row.percent"></div>
+          </div>
+          <span class="dist-count">{{ row.count }} ({{ row.percent }}%)</span>
+        </li>
+        }
+      </ul>
+      }
+    </article>
+
+    <article class="card chart">
+      <h3>Motivos de no interés</h3>
+      @if (noInterestReasons().length === 0) {
+      <p class="muted">Sin motivos de no interés registrados.</p>
+      } @else {
+      <ul class="dist-list">
+        @for (row of noInterestReasons(); track row.label) {
+        <li class="dist-row">
+          <span class="dist-label">{{ row.label }}</span>
+          <div class="dist-bar">
+            <div class="dist-fill warning" [style.width.%]="row.percent"></div>
+          </div>
+          <span class="dist-count">{{ row.count }} ({{ row.percent }}%)</span>
+        </li>
+        }
+      </ul>
+      }
+    </article>
   </div>
 </section>
 
-<section class="cols">
-  <div class="card panel">
-    <h2>Resultado de contacto</h2>
-    <p class="muted small">Sobre {{ r.completed }} llamada(s) completada(s).</p>
-    <ul class="stat-list">
-      <li>
-        <span class="stat-label">Calificadas (identidad + interés)</span>
-        <span class="stat-value ok">{{ r.qualified }} · {{ qualifiedRate(r) }}%</span>
-      </li>
-      <li>
-        <span class="stat-label">Clientes interesados</span>
-        <span class="stat-value">{{ r.interested }}</span>
-      </li>
-      <li>
-        <span class="stat-label">No interesados</span>
-        <span class="stat-value no">{{ r.notInterested }}</span>
-      </li>
-    </ul>
-    <ul class="stat-list">
-      <li>
-        <span class="stat-label">Automáticas (agente)</span>
-        <span class="stat-value">{{ r.automated }}</span>
-      </li>
-      <li>
-        <span class="stat-label">Registro manual del asesor</span>
-        <span class="stat-value">{{ r.manual }}</span>
-      </li>
-    </ul>
+<section class="report-section">
+  <h2 class="section-title">Seguimiento de activación</h2>
+
+  <div class="kpis">
+    <div class="card kpi">
+      <span class="kpi-value">{{ followUpStats().total }}</span>
+      <span class="kpi-label">Clientes en seguimiento</span>
+    </div>
+    <div class="card kpi" [class.danger]="followUpStats().atRisk > 0">
+      <span class="kpi-value">{{ followUpStats().atRisk }}</span>
+      <span class="kpi-label">En riesgo de inactivación</span>
+    </div>
+    <div class="card kpi">
+      <span class="kpi-value">{{ followUpStats().congratulated }}</span>
+      <span class="kpi-label">Llamadas de felicitación</span>
+    </div>
+    <div class="card kpi">
+      <span class="kpi-value">{{ followUpStats().reminders }}</span>
+      <span class="kpi-label">Llamadas de recordatorio</span>
+    </div>
   </div>
 
-  <div class="card panel">
-    <h2>Razones de no interés / fallo</h2>
-    @if (r.topNoInterest.length === 0) {
-    <p class="muted">Aún no hay motivos de no interés registrados.</p>
+  <article class="card chart">
+    <h3>Casos por fase de uso</h3>
+    @if (followUpStats().total === 0) {
+    <p class="muted">Aún no hay clientes en seguimiento.</p>
     } @else {
-    <ul class="rank">
-      @for (item of r.topNoInterest; track item.label) {
-      <li>
-        <div class="rank-top">
-          <span class="rank-label" [title]="item.label">{{ item.label }}</span>
-          <span class="rank-count">{{ item.count }}</span>
+    <ul class="dist-list">
+      @for (row of faseDistribution(); track row.label) {
+      <li class="dist-row">
+        <span class="dist-label">{{ row.label }}</span>
+        <div class="dist-bar">
+          <div class="dist-fill" [style.width.%]="row.percent"></div>
         </div>
-        <div class="rank-bar"><div class="rank-fill" [style.width.%]="item.percent"></div></div>
+        <span class="dist-count">{{ row.count }} ({{ row.percent }}%)</span>
       </li>
       }
     </ul>
     }
-  </div>
-
-  <div class="card panel">
-    <h2>Motivo de finalización de la llamada</h2>
-    @if (r.topEndedReasons.length === 0) {
-    <p class="muted">Aún no hay motivos de finalización registrados (llegan por los webhooks de Fonema).</p>
-    } @else {
-    <ul class="rank">
-      @for (item of r.topEndedReasons; track item.label) {
-      <li>
-        <div class="rank-top">
-          <span class="rank-label" [title]="item.label">{{ item.label }}</span>
-          <span class="rank-count">{{ item.count }}</span>
-        </div>
-        <div class="rank-bar"><div class="rank-fill alt" [style.width.%]="item.percent"></div></div>
-      </li>
-      }
-    </ul>
-    }
-  </div>
+  </article>
 </section>
-}
 }

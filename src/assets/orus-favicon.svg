@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="ORUS">
+  <rect width="256" height="256" rx="56" fill="#FFFFFF" />
+  <g transform="translate(40 64) scale(0.83)" fill="none" stroke="#0049AC" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 66 C 66 34 142 34 198 62" />
+    <path d="M46 76 C 92 92 140 90 172 78" />
+    <circle cx="116" cy="58" r="16" fill="#0049AC" stroke="none" />
+    <path d="M50 78 C 30 96 14 112 34 126 C 50 137 70 124 58 110" />
+    <path d="M148 78 C 154 104 160 128 150 142" />
+  </g>
+</svg>
