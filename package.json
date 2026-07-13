@@ -6,7 +6,9 @@
     "start": "ng serve",
     "prebuild": "node scripts/generate-env.js",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development"
+    "watch": "ng build --watch --configuration development",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "private": true,
   "dependencies": {
@@ -24,9 +26,14 @@
     "zone.js": "~0.14.3"
   },
   "devDependencies": {
+    "@analogjs/vite-plugin-angular": "^1.9.0",
     "@angular-devkit/build-angular": "^17.3.17",
     "@angular/cli": "^17.3.17",
     "@angular/compiler-cli": "^17.3.0",
-    "typescript": "~5.4.2"
+    "@vitest/coverage-v8": "^4.1.10",
+    "jsdom": "^29.1.1",
+    "typescript": "~5.4.2",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
   }
 }
